@@ -84,7 +84,6 @@ export default function CalculatorPage() {
   const [fromZip, setFromZip] = useState("")
   const [toZip, setToZip] = useState("")
   const [weight, setWeight] = useState("")
-  const [packageValue, setPackageValue] = useState("")
   const [parcelType, setParcelType] = useState("")
   const [customDimensions, setCustomDimensions] = useState({
     length: "",
@@ -107,8 +106,8 @@ export default function CalculatorPage() {
 
     try {
       const parcelData: any = {
-        weight: weight,
-        weight_unit: "lb",
+        weight: Number(weight),
+        mass_unit: "oz",
       }
 
       if (parcelType === "custom") {
@@ -230,7 +229,7 @@ export default function CalculatorPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="weight">Weight (lbs) *</Label>
+                    <Label htmlFor="weight">Weight (oz) *</Label>
                     <Input
                       id="weight"
                       placeholder="1.0"
@@ -238,17 +237,6 @@ export default function CalculatorPage() {
                       step="0.1"
                       value={weight}
                       onChange={(e) => setWeight(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="value">Package Value ($)</Label>
-                    <Input
-                      id="value"
-                      placeholder="100.00"
-                      type="number"
-                      step="0.01"
-                      value={packageValue}
-                      onChange={(e) => setPackageValue(e.target.value)}
                     />
                   </div>
                 </div>
@@ -404,10 +392,19 @@ export default function CalculatorPage() {
                 ></div>
                 <CardContent className="text-center space-y-6 relative z-10">
                   <div className="text-6xl mb-4">🛸</div>
-                  <h3 className="text-2xl font-semibold text-gray-900">Ready to Calculate Rates</h3>
+                  <h3 className="text-2xl font-semibold text-gray-900">No Rates Found</h3>
                   <p className="text-gray-600 max-w-md mx-auto">
-                    Fill out the form to get instant shipping quotes from multiple carriers with our alien-negotiated
-                    rates.
+                    Sorry, we couldn't find any shipping rates for your selected parcel and destination.<br />
+                    <br />
+                    This can happen if:<br />
+                    - The selected parcel type is not supported for the chosen carrier or route.<br />
+                    - The weight or dimensions are outside the allowed range.<br />
+                    - The carrier does not serve the selected ZIP codes.<br />
+                    <br />
+                    <b>How to proceed:</b><br />
+                    • Try a different parcel type or adjust the weight/dimensions.<br />
+                    • Double-check the ZIP codes.<br />
+                    • If you continue to have issues, contact support for help.
                   </p>
                 </CardContent>
               </Card>
