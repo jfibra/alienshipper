@@ -1,11 +1,175 @@
+"use client"
+
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calculator, Package, MapPin, Zap } from "lucide-react"
+import { Calculator, Package, MapPin, Zap, Loader2 } from "lucide-react"
+
+interface ParcelType {
+  id: string
+  name: string
+  carrier: string
+  dimensions?: {
+    length: number
+    width: number
+    height: number
+  }
+}
+
+interface ShippingRate {
+  carrier: string
+  service: string
+  amount: string
+  currency: string
+  estimated_days: number
+  retail_rate?: string
+}
+
+const presetParcels: ParcelType[] = [
+  // USPS
+  { id: "USPS_FlatRateEnvelope", name: "Flat Rate Envelope", carrier: "USPS" },
+  { id: "USPS_FlatRateLegalEnvelope", name: "Flat Rate Legal Envelope", carrier: "USPS" },
+  { id: "USPS_FlatRatePaddedEnvelope", name: "Flat Rate Padded Envelope", carrier: "USPS" },
+  { id: "USPS_SmallFlatRateBox", name: "Small Flat Rate Box", carrier: "USPS" },
+  { id: "USPS_MediumFlatRateBox", name: "Medium Flat Rate Box", carrier: "USPS" },
+  { id: "USPS_LargeFlatRateBox", name: "Large Flat Rate Box", carrier: "USPS" },
+
+  // UPS
+  { id: "UPS_Box_10kg", name: "UPS Box 10kg", carrier: "UPS" },
+  { id: "UPS_Box_25kg", name: "UPS Box 25kg", carrier: "UPS" },
+  { id: "UPS_Express_Box", name: "UPS Express Box", carrier: "UPS" },
+  { id: "UPS_Express_Box_Large", name: "UPS Express Box Large", carrier: "UPS" },
+  { id: "UPS_Express_Envelope", name: "UPS Express Envelope", carrier: "UPS" },
+  { id: "UPS_Express_Hard_Pak", name: "UPS Express Hard Pak", carrier: "UPS" },
+  { id: "UPS_Express_Legal_Envelope", name: "UPS Express Legal Envelope", carrier: "UPS" },
+  { id: "UPS_Express_Pak", name: "UPS Express Pak", carrier: "UPS" },
+  { id: "UPS_Express_Tube", name: "UPS Express Tube", carrier: "UPS" },
+  { id: "UPS_Laboratory_Pak", name: "UPS Laboratory Pak", carrier: "UPS" },
+  { id: "UPS_MI_BPM", name: "UPS MI BPM", carrier: "UPS" },
+  { id: "UPS_MI_BPM_Flat", name: "UPS MI BPM Flat", carrier: "UPS" },
+  { id: "UPS_MI_BPM_Tube", name: "UPS MI BPM Tube", carrier: "UPS" },
+  { id: "UPS_MI_First_Class", name: "UPS MI First Class", carrier: "UPS" },
+  { id: "UPS_MI_Flat", name: "UPS MI Flat", carrier: "UPS" },
+  { id: "UPS_MI_Irregular", name: "UPS MI Irregular", carrier: "UPS" },
+  { id: "UPS_MI_Machinable", name: "UPS MI Machinable", carrier: "UPS" },
+  { id: "UPS_MI_MEDIA_MAIL", name: "UPS MI Media Mail", carrier: "UPS" },
+  { id: "UPS_MI_Parcel_Post", name: "UPS MI Parcel Post", carrier: "UPS" },
+  { id: "UPS_MI_Priority", name: "UPS MI Priority", carrier: "UPS" },
+  { id: "UPS_MI_Priority_Flat", name: "UPS MI Priority Flat", carrier: "UPS" },
+  { id: "UPS_MI_Priority_Pak", name: "UPS MI Priority Pak", carrier: "UPS" },
+  { id: "UPS_Pad_Pak", name: "UPS Pad Pak", carrier: "UPS" },
+  { id: "UPS_Pallet", name: "UPS Pallet", carrier: "UPS" },
+
+  // FedEx
+  { id: "FedEx_Box_10kg", name: "FedEx Box 10kg", carrier: "FedEx" },
+  { id: "FedEx_Box_25kg", name: "FedEx Box 25kg", carrier: "FedEx" },
+  { id: "FedEx_Box_Extra_Large_1", name: "FedEx Box Extra Large 1", carrier: "FedEx" },
+  { id: "FedEx_Box_Extra_Large_2", name: "FedEx Box Extra Large 2", carrier: "FedEx" },
+  { id: "FedEx_Box_Large_1", name: "FedEx Box Large 1", carrier: "FedEx" },
+  { id: "FedEx_Box_Large_2", name: "FedEx Box Large 2", carrier: "FedEx" },
+  { id: "FedEx_Box_Medium_1", name: "FedEx Box Medium 1", carrier: "FedEx" },
+  { id: "FedEx_Box_Medium_2", name: "FedEx Box Medium 2", carrier: "FedEx" },
+  { id: "FedEx_Box_Small_1", name: "FedEx Box Small 1", carrier: "FedEx" },
+  { id: "FedEx_Box_Small_2", name: "FedEx Box Small 2", carrier: "FedEx" },
+  { id: "FedEx_Envelope", name: "FedEx Envelope", carrier: "FedEx" },
+  { id: "FedEx_Padded_Pak", name: "FedEx Padded Pak", carrier: "FedEx" },
+  { id: "FedEx_Pak", name: "FedEx Pak", carrier: "FedEx" },
+  { id: "FedEx_Tube", name: "FedEx Tube", carrier: "FedEx" },
+]
 
 export default function CalculatorPage() {
+  const [fromZip, setFromZip] = useState("")
+  const [toZip, setToZip] = useState("")
+  const [weight, setWeight] = useState("")
+  const [packageValue, setPackageValue] = useState("")
+  const [parcelType, setParcelType] = useState("")
+  const [customDimensions, setCustomDimensions] = useState({
+    length: "",
+    width: "",
+    height: "",
+  })
+  const [rates, setRates] = useState<ShippingRate[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+
+  const handleCalculateRates = async () => {
+    if (!fromZip || !toZip || !weight) {
+      setError("Please fill in all required fields")
+      return
+    }
+
+    setLoading(true)
+    setError("")
+    setRates([])
+
+    try {
+      const parcelData: any = {
+        weight: weight,
+        weight_unit: "lb",
+      }
+
+      if (parcelType === "custom") {
+        if (!customDimensions.length || !customDimensions.width || !customDimensions.height) {
+          setError("Please provide custom dimensions")
+          setLoading(false)
+          return
+        }
+        parcelData.length = customDimensions.length
+        parcelData.width = customDimensions.width
+        parcelData.height = customDimensions.height
+        parcelData.distance_unit = "in"
+      } else if (parcelType) {
+        parcelData.template = parcelType
+      }
+
+      const shipmentData = {
+        address_from: {
+          zip: fromZip,
+          country: "US",
+        },
+        address_to: {
+          zip: toZip,
+          country: "US",
+        },
+        parcels: [parcelData],
+      }
+
+      const response = await fetch("/api/calculate-rates", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(shipmentData),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to calculate rates")
+      }
+
+      setRates(data.rates || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const groupedParcels = presetParcels.reduce(
+    (acc, parcel) => {
+      if (!acc[parcel.carrier]) {
+        acc[parcel.carrier] = []
+      }
+      acc[parcel.carrier].push(parcel)
+      return acc
+    },
+    {} as Record<string, ParcelType[]>,
+  )
+
   return (
     <div className="min-h-screen py-20">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -34,26 +198,14 @@ export default function CalculatorPage() {
                   <MapPin className="w-5 h-5 mr-2" />
                   Ship From
                 </Label>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="from-zip">ZIP Code</Label>
-                    <Input id="from-zip" placeholder="10001" />
-                  </div>
-                  <div>
-                    <Label htmlFor="from-country">Country</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="United States" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="us">United States</SelectItem>
-                        <SelectItem value="ca">Canada</SelectItem>
-                        <SelectItem value="mx">Mexico</SelectItem>
-                        <SelectItem value="mars">Mars</SelectItem>
-                        <SelectItem value="jupiter">Jupiter</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div>
+                  <Label htmlFor="from-zip">ZIP Code *</Label>
+                  <Input
+                    id="from-zip"
+                    placeholder="10001"
+                    value={fromZip}
+                    onChange={(e) => setFromZip(e.target.value)}
+                  />
                 </div>
               </div>
 
@@ -63,26 +215,9 @@ export default function CalculatorPage() {
                   <MapPin className="w-5 h-5 mr-2" />
                   Ship To
                 </Label>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="to-zip">ZIP Code</Label>
-                    <Input id="to-zip" placeholder="90210" />
-                  </div>
-                  <div>
-                    <Label htmlFor="to-country">Country</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="United States" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="us">United States</SelectItem>
-                        <SelectItem value="ca">Canada</SelectItem>
-                        <SelectItem value="mx">Mexico</SelectItem>
-                        <SelectItem value="mars">Mars</SelectItem>
-                        <SelectItem value="jupiter">Jupiter</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div>
+                  <Label htmlFor="to-zip">ZIP Code *</Label>
+                  <Input id="to-zip" placeholder="90210" value={toZip} onChange={(e) => setToZip(e.target.value)} />
                 </div>
               </div>
 
@@ -92,104 +227,191 @@ export default function CalculatorPage() {
                   <Package className="w-5 h-5 mr-2" />
                   Package Details
                 </Label>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="weight">Weight (lbs)</Label>
-                    <Input id="weight" placeholder="1.0" type="number" />
+                    <Label htmlFor="weight">Weight (lbs) *</Label>
+                    <Input
+                      id="weight"
+                      placeholder="1.0"
+                      type="number"
+                      step="0.1"
+                      value={weight}
+                      onChange={(e) => setWeight(e.target.value)}
+                    />
                   </div>
                   <div>
                     <Label htmlFor="value">Package Value ($)</Label>
-                    <Input id="value" placeholder="100.00" type="number" />
+                    <Input
+                      id="value"
+                      placeholder="100.00"
+                      type="number"
+                      step="0.01"
+                      value={packageValue}
+                      onChange={(e) => setPackageValue(e.target.value)}
+                    />
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="length">Length (in)</Label>
-                    <Input id="length" placeholder="12" type="number" />
-                  </div>
-                  <div>
-                    <Label htmlFor="width">Width (in)</Label>
-                    <Input id="width" placeholder="8" type="number" />
-                  </div>
-                  <div>
-                    <Label htmlFor="height">Height (in)</Label>
-                    <Input id="height" placeholder="6" type="number" />
-                  </div>
+
+                <div>
+                  <Label htmlFor="parcel-type">Parcel Type</Label>
+                  <Select value={parcelType} onValueChange={setParcelType}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select parcel type or use custom dimensions" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(groupedParcels).map(([carrier, parcels]) => (
+                        <div key={carrier}>
+                          <div className="px-2 py-1 text-sm font-semibold text-gray-500 bg-gray-100">{carrier}</div>
+                          {parcels.map((parcel) => (
+                            <SelectItem key={parcel.id} value={parcel.id}>
+                              {parcel.name}
+                            </SelectItem>
+                          ))}
+                        </div>
+                      ))}
+                      <div className="px-2 py-1 text-sm font-semibold text-gray-500 bg-gray-100">Custom</div>
+                      <SelectItem value="custom">Custom Parcel</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
+
+                {parcelType === "custom" && (
+                  <div className="grid grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <Label htmlFor="length">Length (in) *</Label>
+                      <Input
+                        id="length"
+                        placeholder="12"
+                        type="number"
+                        step="0.1"
+                        value={customDimensions.length}
+                        onChange={(e) => setCustomDimensions((prev) => ({ ...prev, length: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="width">Width (in) *</Label>
+                      <Input
+                        id="width"
+                        placeholder="8"
+                        type="number"
+                        step="0.1"
+                        value={customDimensions.width}
+                        onChange={(e) => setCustomDimensions((prev) => ({ ...prev, width: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="height">Height (in) *</Label>
+                      <Input
+                        id="height"
+                        placeholder="6"
+                        type="number"
+                        step="0.1"
+                        value={customDimensions.height}
+                        onChange={(e) => setCustomDimensions((prev) => ({ ...prev, height: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <Button className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-lg py-6">
-                <Zap className="w-5 h-5 mr-2" />
-                Calculate Rates
+              {error && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-red-600 text-sm">{error}</p>
+                </div>
+              )}
+
+              <Button
+                onClick={handleCalculateRates}
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-lg py-6"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Calculating...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-5 h-5 mr-2" />
+                    Calculate Rates
+                  </>
+                )}
               </Button>
             </CardContent>
           </Card>
 
-          {/* Results Preview */}
+          {/* Results */}
           <div className="space-y-8">
-            <Card className="p-8 bg-gradient-to-br from-purple-50 to-blue-50 relative overflow-hidden">
-              <div
-                className="absolute inset-0 opacity-10"
-                style={{
-                  backgroundImage: `url('/images/abstract-ecommerce-flow.png')`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }}
-              ></div>
-              <CardContent className="text-center space-y-6 relative z-10">
-                <div className="text-6xl mb-4">🛸</div>
-                <h3 className="text-2xl font-semibold text-gray-900">Quantum Calculator Initializing...</h3>
-                <p className="text-gray-600 max-w-md mx-auto">
-                  Our alien engineers are calibrating the quantum processors. Fill out the form to get instant shipping
-                  quotes from multiple carriers.
-                </p>
-              </CardContent>
-            </Card>
+            {loading ? (
+              <Card className="p-8">
+                <CardContent className="text-center space-y-6">
+                  <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto" />
+                  <h3 className="text-2xl font-semibold text-gray-900">Calculating Rates...</h3>
+                  <p className="text-gray-600">Our alien technology is finding the best rates across the galaxy...</p>
+                </CardContent>
+              </Card>
+            ) : rates.length > 0 ? (
+              <Card className="p-6">
+                <CardHeader>
+                  <CardTitle className="text-xl font-semibold text-gray-900">
+                    Shipping Rates ({rates.length} options found)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {rates.map((rate, index) => (
+                    <div
+                      key={index}
+                      className="flex justify-between items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      <div>
+                        <div className="font-semibold text-gray-900">
+                          {rate.carrier} {rate.service}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {rate.estimated_days ? `${rate.estimated_days} business days` : "Delivery time varies"}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-green-600">
+                          ${Number.parseFloat(rate.amount).toFixed(2)}
+                        </div>
+                        {rate.retail_rate && Number.parseFloat(rate.retail_rate) > Number.parseFloat(rate.amount) && (
+                          <div className="text-sm text-gray-500 line-through">
+                            ${Number.parseFloat(rate.retail_rate).toFixed(2)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
 
-            {/* Sample Results */}
-            <Card className="p-6">
-              <CardHeader>
-                <CardTitle className="text-xl font-semibold text-gray-900">Sample Results Preview</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
-                  <div>
-                    <div className="font-semibold text-gray-900">USPS Priority Mail</div>
-                    <div className="text-sm text-gray-600">1-3 business days</div>
+                  <div className="text-center pt-4 border-t border-gray-200">
+                    <p className="text-sm text-gray-600">
+                      * Rates shown are discounted AlienShipper prices. Actual delivery times may vary.
+                    </p>
                   </div>
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-green-600">$6.20</div>
-                    <div className="text-sm text-gray-500 line-through">$8.95</div>
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
-                  <div>
-                    <div className="font-semibold text-gray-900">UPS Ground</div>
-                    <div className="text-sm text-gray-600">1-5 business days</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-green-600">$7.89</div>
-                    <div className="text-sm text-gray-500 line-through">$12.45</div>
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
-                  <div>
-                    <div className="font-semibold text-gray-900">FedEx Express</div>
-                    <div className="text-sm text-gray-600">1-2 business days</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-green-600">$15.20</div>
-                    <div className="text-sm text-gray-500 line-through">$24.50</div>
-                  </div>
-                </div>
-
-                <div className="text-center pt-4">
-                  <p className="text-sm text-gray-600">* Sample rates shown. Actual rates calculated in real-time.</p>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="p-8 bg-gradient-to-br from-purple-50 to-blue-50 relative overflow-hidden">
+                <div
+                  className="absolute inset-0 opacity-10"
+                  style={{
+                    backgroundImage: `url('/images/abstract-ecommerce-flow.png')`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }}
+                ></div>
+                <CardContent className="text-center space-y-6 relative z-10">
+                  <div className="text-6xl mb-4">🛸</div>
+                  <h3 className="text-2xl font-semibold text-gray-900">Ready to Calculate Rates</h3>
+                  <p className="text-gray-600 max-w-md mx-auto">
+                    Fill out the form to get instant shipping quotes from multiple carriers with our alien-negotiated
+                    rates.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Features */}
             <Card className="p-6">
@@ -198,23 +420,23 @@ export default function CalculatorPage() {
                 <ul className="space-y-3">
                   <li className="flex items-center space-x-3">
                     <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
-                    <span className="text-gray-700">Real-time rates from all major carriers</span>
+                    <span className="text-gray-700">Real-time rates from USPS, UPS, and FedEx</span>
                   </li>
                   <li className="flex items-center space-x-3">
                     <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                    <span className="text-gray-700">Instant quotes in milliseconds</span>
+                    <span className="text-gray-700">Preset parcel types for easy selection</span>
                   </li>
                   <li className="flex items-center space-x-3">
                     <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                    <span className="text-gray-700">International shipping support</span>
+                    <span className="text-gray-700">Custom dimensions support</span>
                   </li>
                   <li className="flex items-center space-x-3">
                     <div className="w-2 h-2 bg-orange-600 rounded-full"></div>
-                    <span className="text-gray-700">Dimensional weight calculations</span>
+                    <span className="text-gray-700">Instant alien-negotiated discounts</span>
                   </li>
                   <li className="flex items-center space-x-3">
                     <div className="w-2 h-2 bg-red-600 rounded-full"></div>
-                    <span className="text-gray-700">Insurance and signature options</span>
+                    <span className="text-gray-700">Compare multiple shipping options</span>
                   </li>
                 </ul>
               </CardContent>
