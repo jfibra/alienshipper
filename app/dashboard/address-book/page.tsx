@@ -285,7 +285,7 @@ export default function AddressBookPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="shipping" className="space-y-6">
+          <TabsContent value="shipping" className="bg-white space-y-6">
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
