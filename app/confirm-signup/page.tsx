@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { createSupabaseClient } from "@/lib/supabase";
 
 export default function ConfirmSignupPage() {
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
@@ -12,6 +12,7 @@ export default function ConfirmSignupPage() {
   useEffect(() => {
     const handleEmailConfirmation = async () => {
       try {
+        const supabase = createSupabaseClient();
         const token_hash = searchParams.get("token_hash");
         const type = searchParams.get("type");
         if (token_hash && type) {
