@@ -1,5 +1,3 @@
-"use client"
-import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,59 +20,6 @@ import {
 } from "lucide-react"
 
 export default function ContactPage() {
-  const [form, setForm] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    company: "",
-    subject: "",
-    message: "",
-  })
-  const [submitting, setSubmitting] = useState(false)
-  const [success, setSuccess] = useState("")
-  const [error, setError] = useState("")
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setForm({ ...form, [e.target.id]: e.target.value })
-  }
-
-  const handleSubject = (value: string) => {
-    setForm((prev) => ({ ...prev, subject: value }))
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setSuccess("")
-    if (!form.firstName || !form.lastName || !form.email || !form.subject || !form.message) {
-      setError("Please fill in all required fields.")
-      return
-    }
-    setSubmitting(true)
-    try {
-      const res = await fetch("/api/contact-us", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      })
-      let data = null
-      try {
-        data = await res.json()
-      } catch (jsonErr) {
-        // If the response is not valid JSON
-        setError("Unexpected server response. Please try again later.")
-        setSubmitting(false)
-        return
-      }
-      if (!res.ok) throw new Error(data?.error || "Submission failed")
-      setSuccess("Thank you! Your message has been received. We'll get back to you soon.")
-      setForm({ firstName: "", lastName: "", email: "", company: "", subject: "", message: "" })
-    } catch (err: any) {
-      setError(err.message || "Submission failed")
-    } finally {
-      setSubmitting(false)
-    }
-  }
   const contactMethods = [
     {
       icon: Mail,
@@ -146,61 +91,57 @@ export default function ContactPage() {
               <p className="text-gray-600">Fill out the form below and we'll get back to you within light speed</p>
             </CardHeader>
             <CardContent className="space-y-6">
-              {success && <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-700 text-center">{success}</div>}
-              {error && <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-center">{error}</div>}
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="firstName">First Name *</Label>
-                    <Input id="firstName" placeholder="John" value={form.firstName} onChange={handleChange} />
-                  </div>
-                  <div>
-                    <Label htmlFor="lastName">Last Name *</Label>
-                    <Input id="lastName" placeholder="Doe" value={form.lastName} onChange={handleChange} />
-                  </div>
-                </div>
-
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="email">Email Address *</Label>
-                  <Input id="email" type="email" placeholder="john@company.com" value={form.email} onChange={handleChange} />
+                  <Label htmlFor="firstName">First Name *</Label>
+                  <Input id="firstName" placeholder="John" />
                 </div>
-
                 <div>
-                  <Label htmlFor="company">Company Name</Label>
-                  <Input id="company" placeholder="Acme Corp" value={form.company} onChange={handleChange} />
+                  <Label htmlFor="lastName">Last Name *</Label>
+                  <Input id="lastName" placeholder="Doe" />
                 </div>
+              </div>
 
-                <div>
-                  <Label htmlFor="subject">Subject *</Label>
-                  <Select value={form.subject} onValueChange={handleSubject}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a topic" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="General Inquiry">General Inquiry</SelectItem>
-                      <SelectItem value="Technical Support">Technical Support</SelectItem>
-                      <SelectItem value="Billing Question">Billing Question</SelectItem>
-                      <SelectItem value="Partnership">Partnership</SelectItem>
-                      <SelectItem value="Feedback">Feedback</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div>
+                <Label htmlFor="email">Email Address *</Label>
+                <Input id="email" type="email" placeholder="john@company.com" />
+              </div>
 
-                <div>
-                  <Label htmlFor="message">Message *</Label>
-                  <Textarea id="message" placeholder="Tell us how we can help you..." className="min-h-[120px]" value={form.message} onChange={handleChange} />
-                </div>
+              <div>
+                <Label htmlFor="company">Company Name</Label>
+                <Input id="company" placeholder="Acme Corp" />
+              </div>
 
-                <Button type="submit" disabled={submitting} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-lg py-6">
-                  <Send className="w-5 h-5 mr-2" />
-                  {submitting ? "Sending..." : "Send Message"}
-                </Button>
+              <div>
+                <Label htmlFor="subject">Subject *</Label>
+                <Select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a topic" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="general">General Inquiry</SelectItem>
+                    <SelectItem value="support">Technical Support</SelectItem>
+                    <SelectItem value="billing">Billing Question</SelectItem>
+                    <SelectItem value="partnership">Partnership</SelectItem>
+                    <SelectItem value="feedback">Feedback</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-                <p className="text-sm text-gray-600 text-center">
-                  * Required fields. We typically respond within 1 hour during business hours.
-                </p>
-              </form>
+              <div>
+                <Label htmlFor="message">Message *</Label>
+                <Textarea id="message" placeholder="Tell us how we can help you..." className="min-h-[120px]" />
+              </div>
+
+              <Button className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-lg py-6">
+                <Send className="w-5 h-5 mr-2" />
+                Send Message
+              </Button>
+
+              <p className="text-sm text-gray-600 text-center">
+                * Required fields. We typically respond within 1 hour during business hours.
+              </p>
             </CardContent>
           </Card>
 

@@ -2,15 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
   try {
-
-    // Ensure mass_unit is set to 'oz' for all parcels
-    const shipmentData = await request.json();
-    if (shipmentData.parcels && Array.isArray(shipmentData.parcels)) {
-      shipmentData.parcels = shipmentData.parcels.map((parcel: any) => ({
-        ...parcel,
-        mass_unit: 'oz',
-      }));
-    }
+    const shipmentData = await request.json()
 
     const response = await fetch("https://api.goshippo.com/shipments/", {
       method: "POST",
