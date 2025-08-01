@@ -47,8 +47,17 @@ export default function Profile() {
           setForm(data);
           setLoading(false);
         } else {
-          // Auto-create profile row if not found
-          // Try to get names from user_metadata or email
+          // Try to find by email in case id is mismatched
+          const { data: byEmail } = await supabase.from("users").select("*").eq("email", user.email).single();
+          if (byEmail) {
+            // Update the id to match auth user
+            await supabase.from("users").update({ id: user.id }).eq("email", user.email);
+            setProfile({ ...byEmail, id: user.id });
+            setForm({ ...byEmail, id: user.id });
+            setLoading(false);
+            return;
+          }
+          // Auto-create profile row if not found by id or email
           const meta = user.user_metadata || {};
           const first_name = meta.first_name || (meta.full_name ? meta.full_name.split(" ")[0] : "");
           const last_name = meta.last_name || (meta.full_name ? meta.full_name.split(" ").slice(1).join(" ") : "");
