@@ -1,18 +1,17 @@
-import { NextRequest, NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-if (!supabaseUrl || !supabaseServiceRole) {
-  throw new Error("Supabase environment variables are not set.")
+if (!supabaseUrl || !supabaseServiceKey) {
+  throw new Error("Missing Supabase environment variables")
 }
 
-const supabase = createClient(supabaseUrl, supabaseServiceRole)
+const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
     const {
       email,
       password,
@@ -24,45 +23,62 @@ export async function POST(req: NextRequest) {
       monthlyVolume,
       agreedTerms,
       newsletter,
-    } = body
+    } = await req.json()
 
     if (!email || !password || !firstName || !lastName || !agreedTerms) {
-      return NextResponse.json({ error: "Missing required fields." }, { status: 400 })
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    // 1. Create user in Supabase Auth
-    const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+    // Create user in Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
-      email_confirm: false,
+      options: {
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+          company,
+          phone,
+          business_type: businessType,
+          monthly_volume: monthlyVolume,
+          newsletter,
+        },
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/confirm-signup`,
+      },
     })
+
     if (authError) {
       return NextResponse.json({ error: authError.message }, { status: 400 })
     }
-    const userId = authUser.user?.id
-    if (!userId) {
-      return NextResponse.json({ error: "Failed to create user." }, { status: 500 })
+
+    if (!authData.user) {
+      return NextResponse.json({ error: "Failed to create user" }, { status: 400 })
     }
 
-    // 2. Insert extra info into users table
-    const { error: insertError } = await supabase.from("users").insert({
-      id: userId,
-      email,
+    // Create profile in profiles table
+    const { error: profileError } = await supabase.from("profiles").insert({
+      user_id: authData.user.id,
       first_name: firstName,
       last_name: lastName,
       company,
       phone,
       business_type: businessType,
-      monthly_shipping_volume: monthlyVolume,
-      agreed_terms: agreedTerms,
-      newsletter_opt_in: newsletter,
+      monthly_volume: monthlyVolume,
+      newsletter,
     })
-    if (insertError) {
-      return NextResponse.json({ error: insertError.message }, { status: 500 })
+
+    if (profileError) {
+      console.error("Profile creation error:", profileError)
+      // Don't fail the signup if profile creation fails
     }
 
-    return NextResponse.json({ success: true })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Signup failed" }, { status: 500 })
+    return NextResponse.json({
+      success: true,
+      message: "Account created successfully! Please check your email to verify your account.",
+      user: authData.user,
+    })
+  } catch (error: any) {
+    console.error("Signup error:", error)
+    return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 })
   }
 }

@@ -6,7 +6,20 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calculator, Loader2, ArrowRight, Zap, Package, MapPin, Star, Clock, DollarSign } from "lucide-react"
+import {
+  Calculator,
+  Loader2,
+  ArrowRight,
+  Zap,
+  Package,
+  MapPin,
+  Star,
+  Clock,
+  DollarSign,
+  ChevronDown,
+} from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
 
 interface ParcelType {
   id: string
@@ -95,8 +108,8 @@ const presetParcels: ParcelType[] = [
 ]
 
 const packageTypes = [
-  { id: "custom", name: "Custom box", description: "Any rigid box or thick parcel" },
-  { id: "poly", name: "Poly mailer", description: "Any soft, padded, or flat bag" },
+  { id: "custom", name: "Custom box", description: "Any rigid box or thick parcel", icon: "📦" },
+  { id: "poly", name: "Poly mailer", description: "Any soft, padded, or flat bag", icon: "📮" },
 ]
 
 export default function CalculatorPage() {
@@ -211,6 +224,16 @@ export default function CalculatorPage() {
     return logos[carrier] || "📮"
   }
 
+  const getCarrierColor = (carrier: string) => {
+    const colors: Record<string, string> = {
+      USPS: "bg-blue-100 text-blue-800",
+      UPS: "bg-amber-100 text-amber-800",
+      FedEx: "bg-purple-100 text-purple-800",
+      DHL: "bg-red-100 text-red-800",
+    }
+    return colors[carrier] || "bg-gray-100 text-gray-800"
+  }
+
   const getBestValue = () => {
     if (rates.length === 0) return null
     return rates.reduce((best, rate) => {
@@ -240,6 +263,8 @@ export default function CalculatorPage() {
     const cheapest = getCheapest()
     return rates.filter((rate) => rate !== bestValue && rate !== cheapest)
   }
+
+  const selectedParcel = presetParcels.find((p) => p.id === parcelTemplate)
 
   return (
     <div className="min-h-screen py-20 bg-gradient-to-br from-gray-50 to-blue-50">
@@ -276,10 +301,10 @@ export default function CalculatorPage() {
                     <div className="space-y-2">
                       <Label className="text-sm font-semibold text-gray-700 flex items-center">
                         <MapPin className="w-4 h-4 mr-2 text-purple-600" />
-                        From
+                        From ZIP Code
                       </Label>
                       <Input
-                        placeholder="ZIP code"
+                        placeholder="e.g. 10001"
                         value={fromZip}
                         onChange={(e) => setFromZip(e.target.value)}
                         className="h-12 text-lg border-2 border-gray-200 focus:border-purple-500 rounded-lg"
@@ -293,10 +318,10 @@ export default function CalculatorPage() {
                     <div className="space-y-2">
                       <Label className="text-sm font-semibold text-gray-700 flex items-center">
                         <MapPin className="w-4 h-4 mr-2 text-blue-600" />
-                        Destination
+                        To ZIP Code
                       </Label>
                       <Input
-                        placeholder="ZIP code"
+                        placeholder="e.g. 90210"
                         value={toZip}
                         onChange={(e) => setToZip(e.target.value)}
                         className="h-12 text-lg border-2 border-gray-200 focus:border-blue-500 rounded-lg"
@@ -322,40 +347,86 @@ export default function CalculatorPage() {
                         }`}
                         onClick={() => setPackageType(type.id)}
                       >
-                        <div className="font-semibold text-gray-900">{type.name}</div>
-                        <div className="text-sm text-gray-600 mt-1">{type.description}</div>
+                        <div className="flex items-center space-x-3">
+                          <span className="text-2xl">{type.icon}</span>
+                          <div>
+                            <div className="font-semibold text-gray-900">{type.name}</div>
+                            <div className="text-sm text-gray-600 mt-1">{type.description}</div>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* Predefined Package Selection */}
+                {/* Improved Predefined Package Selection */}
                 {packageType === "custom" && (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     <Label className="text-sm font-semibold text-gray-700">Predefined Package (Optional)</Label>
                     <Select value={parcelTemplate} onValueChange={setParcelTemplate}>
-                      <SelectTrigger className="h-12 border-2 border-gray-200 focus:border-purple-500">
-                        <SelectValue placeholder="Select a predefined package or use custom dimensions" />
+                      <SelectTrigger className="h-14 border-2 border-gray-200 focus:border-purple-500 bg-white">
+                        <div className="flex items-center justify-between w-full">
+                          {parcelTemplate === "custom" ? (
+                            <div className="flex items-center space-x-3">
+                              <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                                <Package className="w-4 h-4 text-gray-600" />
+                              </div>
+                              <span className="text-gray-600">
+                                Select a predefined package or use custom dimensions
+                              </span>
+                            </div>
+                          ) : selectedParcel ? (
+                            <div className="flex items-center space-x-3">
+                              <Badge className={`${getCarrierColor(selectedParcel.carrier)} font-medium`}>
+                                {getCarrierLogo(selectedParcel.carrier)} {selectedParcel.carrier}
+                              </Badge>
+                              <div>
+                                <div className="font-medium text-left">{selectedParcel.name}</div>
+                                {selectedParcel.description && (
+                                  <div className="text-xs text-gray-500 text-left">{selectedParcel.description}</div>
+                                )}
+                              </div>
+                            </div>
+                          ) : null}
+                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                        </div>
                       </SelectTrigger>
-                      <SelectContent className="max-h-80">
-                        <SelectItem value="custom">
-                          <div className="font-medium">Custom dimensions</div>
+                      <SelectContent className="max-h-80 w-full">
+                        <SelectItem value="custom" className="py-3">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                              <Package className="w-4 h-4 text-gray-600" />
+                            </div>
+                            <div>
+                              <div className="font-medium">Custom dimensions</div>
+                              <div className="text-xs text-gray-500">Enter your own package dimensions</div>
+                            </div>
+                          </div>
                         </SelectItem>
                         {Object.entries(groupedParcels).map(([carrier, parcels]) => (
                           <div key={carrier}>
-                            <div className="px-2 py-2 text-sm font-bold text-purple-700 bg-purple-50 sticky top-0">
-                              {carrier}
+                            <div className="px-3 py-2 text-sm font-bold text-gray-700 bg-gray-50 sticky top-0 border-b">
+                              <div className="flex items-center space-x-2">
+                                <span>{getCarrierLogo(carrier)}</span>
+                                <span>{carrier} Packages</span>
+                              </div>
                             </div>
                             {parcels.map((parcel) => (
-                              <SelectItem key={parcel.id} value={parcel.id} className="pl-4">
-                                <div>
-                                  <div className="font-medium">{parcel.name}</div>
-                                  {parcel.description && (
-                                    <div className="text-xs text-gray-500 mt-1">{parcel.description}</div>
-                                  )}
+                              <SelectItem key={parcel.id} value={parcel.id} className="pl-6 py-3">
+                                <div className="flex items-center space-x-3 w-full">
+                                  <Badge className={`${getCarrierColor(parcel.carrier)} text-xs`}>
+                                    {parcel.carrier}
+                                  </Badge>
+                                  <div className="flex-1">
+                                    <div className="font-medium">{parcel.name}</div>
+                                    {parcel.description && (
+                                      <div className="text-xs text-gray-500 mt-1">{parcel.description}</div>
+                                    )}
+                                  </div>
                                 </div>
                               </SelectItem>
                             ))}
+                            <Separator className="my-1" />
                           </div>
                         ))}
                       </SelectContent>
@@ -366,13 +437,14 @@ export default function CalculatorPage() {
                 {/* Custom Dimensions */}
                 {((packageType === "custom" && parcelTemplate === "custom") || packageType === "poly") && (
                   <div className="space-y-4">
-                    <Label className="text-sm font-semibold text-gray-700">Dimensions</Label>
+                    <Label className="text-sm font-semibold text-gray-700">Package Dimensions</Label>
                     <div className="grid grid-cols-4 gap-3">
                       <div className="space-y-2">
                         <Label className="text-xs text-gray-600">Length</Label>
                         <Input
                           type="number"
                           step="0.1"
+                          placeholder="0.0"
                           value={customDimensions.length}
                           onChange={(e) => setCustomDimensions((prev) => ({ ...prev, length: e.target.value }))}
                           className="text-center border-2 border-gray-200 focus:border-purple-500"
@@ -383,6 +455,7 @@ export default function CalculatorPage() {
                         <Input
                           type="number"
                           step="0.1"
+                          placeholder="0.0"
                           value={customDimensions.width}
                           onChange={(e) => setCustomDimensions((prev) => ({ ...prev, width: e.target.value }))}
                           className="text-center border-2 border-gray-200 focus:border-purple-500"
@@ -393,6 +466,7 @@ export default function CalculatorPage() {
                         <Input
                           type="number"
                           step="0.1"
+                          placeholder="0.0"
                           value={customDimensions.height}
                           onChange={(e) => setCustomDimensions((prev) => ({ ...prev, height: e.target.value }))}
                           className="text-center border-2 border-gray-200 focus:border-purple-500"
@@ -408,7 +482,7 @@ export default function CalculatorPage() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="in">in</SelectItem>
+                            <SelectItem value="in">inches</SelectItem>
                             <SelectItem value="cm">cm</SelectItem>
                           </SelectContent>
                         </Select>
@@ -419,12 +493,12 @@ export default function CalculatorPage() {
 
                 {/* Weight */}
                 <div className="space-y-4">
-                  <Label className="text-sm font-semibold text-gray-700">Weight</Label>
+                  <Label className="text-sm font-semibold text-gray-700">Package Weight</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <Input
                       type="number"
                       step="0.1"
-                      placeholder="Weight"
+                      placeholder="Enter weight"
                       value={weight}
                       onChange={(e) => setWeight(e.target.value)}
                       className="h-12 text-lg text-center border-2 border-gray-200 focus:border-purple-500"
@@ -434,10 +508,10 @@ export default function CalculatorPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="oz">oz</SelectItem>
-                        <SelectItem value="lb">lb</SelectItem>
-                        <SelectItem value="g">g</SelectItem>
-                        <SelectItem value="kg">kg</SelectItem>
+                        <SelectItem value="oz">Ounces (oz)</SelectItem>
+                        <SelectItem value="lb">Pounds (lb)</SelectItem>
+                        <SelectItem value="g">Grams (g)</SelectItem>
+                        <SelectItem value="kg">Kilograms (kg)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
