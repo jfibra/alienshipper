@@ -77,7 +77,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Show loading state
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
           <div className="relative">
             <div className="w-16 h-16 border-4 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -86,7 +86,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               style={{ animationDirection: "reverse", animationDuration: "1.5s" }}
             ></div>
           </div>
-          <p className="text-purple-200 font-medium">Loading your intergalactic dashboard...</p>
+          <p className="text-gray-600 font-medium">Loading your intergalactic dashboard...</p>
         </div>
       </div>
     )
@@ -98,15 +98,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen flex bg-white">
       {/* Sidebar */}
-      <aside className="w-72 bg-gradient-to-b from-slate-800/90 to-slate-900/90 backdrop-blur-xl border-r border-purple-500/20 flex flex-col shadow-2xl relative overflow-hidden pt-12">
-        {/* Cosmic background effects */}
-        <div className="absolute inset-0 bg-gradient-to-b from-purple-500/5 to-blue-500/5"></div>
-        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-purple-400/10 to-transparent"></div>
-
+      <aside className="w-72 bg-white border-r border-gray-200 flex flex-col shadow-sm relative overflow-hidden pt-12">
         {/* Logo */}
-        <div className="relative p-6 border-b border-purple-500/20">
+        <div className="relative p-6 border-b border-gray-200">
           <Link href="/" className="flex items-center space-x-3 group">
             <div className="relative">
               <img
@@ -117,26 +113,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div className="absolute inset-0 bg-purple-400/20 rounded-full blur-lg group-hover:bg-purple-400/40 transition-colors duration-300"></div>
             </div>
             <div>
-              <span className="text-xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+              <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                 AlienShipper
               </span>
-              <div className="text-xs text-purple-300/70 font-medium">Intergalactic Shipping</div>
+              <div className="text-xs text-gray-500 font-medium">Intergalactic Shipping</div>
             </div>
           </Link>
         </div>
 
         {/* User Info */}
-        <div className="relative p-4 border-b border-purple-500/20">
-          <div className="flex items-center space-x-3 p-3 rounded-xl bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20">
+        <div className="relative p-4 border-b border-gray-200">
+          <div className="flex items-center space-x-3 p-3 rounded-xl bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-100">
             <div className="relative">
               <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
                 <User className="w-6 h-6 text-white" />
               </div>
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-slate-800 animate-pulse"></div>
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white animate-pulse"></div>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white truncate">{user.email}</p>
-              <p className="text-xs text-purple-300/80 flex items-center">
+              <p className="text-sm font-semibold text-gray-900 truncate">{user.email}</p>
+              <p className="text-xs text-gray-600 flex items-center">
                 <Zap className="w-3 h-3 mr-1" />
                 Active Captain
               </p>
@@ -155,31 +151,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 href={item.href}
                 className={`group flex items-center space-x-3 px-4 py-3 rounded-xl font-medium transition-all duration-300 relative overflow-hidden ${
                   isActive
-                    ? "bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-white border border-purple-400/30 shadow-lg"
-                    : "text-purple-200 hover:bg-gradient-to-r hover:from-purple-500/10 hover:to-blue-500/10 hover:text-white hover:border hover:border-purple-400/20"
+                    ? "bg-gradient-to-r from-purple-100 to-blue-100 text-gray-900 border border-purple-200 shadow-sm"
+                    : "text-gray-600 hover:bg-gradient-to-r hover:from-purple-50 hover:to-blue-50 hover:text-gray-900 hover:border hover:border-purple-100"
                 }`}
               >
-                {isActive && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-blue-500/10 animate-pulse"></div>
-                )}
                 <Icon
                   className={`w-5 h-5 transition-all duration-300 relative z-10 ${
-                    isActive ? "text-purple-300" : "text-purple-400 group-hover:text-purple-300"
+                    isActive ? "text-purple-600" : "text-gray-500 group-hover:text-purple-600"
                   }`}
                 />
                 <span className="relative z-10 flex-1">{item.name}</span>
-                {isActive && <ChevronRight className="w-4 h-4 text-purple-300 relative z-10" />}
+                {isActive && <ChevronRight className="w-4 h-4 text-purple-600 relative z-10" />}
               </Link>
             )
           })}
         </nav>
 
         {/* Logout Button */}
-        <div className="relative p-4 border-t border-purple-500/20">
+        <div className="relative p-4 border-t border-gray-200">
           <Button
             onClick={handleLogout}
             disabled={isSigningOut}
-            className="w-full bg-gradient-to-r from-red-500/80 to-pink-500/80 hover:from-red-500 hover:to-pink-500 text-white font-semibold py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl border border-red-400/20 hover:border-red-400/40"
+            className="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-semibold py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
           >
             {isSigningOut ? (
               <>
@@ -197,8 +190,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto relative pt-16">
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900/50 to-purple-900/50"></div>
+      <main className="flex-1 overflow-auto relative pt-16 bg-white">
         <div className="relative z-10 p-8">{children}</div>
       </main>
     </div>
