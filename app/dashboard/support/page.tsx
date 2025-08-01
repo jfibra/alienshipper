@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useUser } from "@/hooks/use-user"
@@ -205,7 +204,7 @@ export default function Support() {
     if (insertError) {
       setError(insertError.message)
     } else {
-      setSuccess("Ticket transmitted to our alien support team! They will respond at warp speed.")
+      setSuccess("Ticket submitted successfully! Our support team will respond soon.")
       setMessage("")
       setPage(PAGES[0])
       setTimeout(() => setSuccess(""), 5000)
@@ -216,13 +215,13 @@ export default function Support() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "open":
-        return "from-green-500/20 to-emerald-500/20 border-green-400/30 text-green-300"
+        return "bg-green-100 text-green-800 border-green-200"
       case "resolved":
-        return "from-blue-500/20 to-cyan-500/20 border-blue-400/30 text-blue-300"
+        return "bg-blue-100 text-blue-800 border-blue-200"
       case "closed":
-        return "from-gray-500/20 to-slate-500/20 border-gray-400/30 text-gray-300"
+        return "bg-gray-100 text-gray-800 border-gray-200"
       default:
-        return "from-yellow-500/20 to-orange-500/20 border-yellow-400/30 text-yellow-300"
+        return "bg-yellow-100 text-yellow-800 border-yellow-200"
     }
   }
 
@@ -241,179 +240,165 @@ export default function Support() {
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       {/* Header */}
-      <div className="relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-2xl blur-xl"></div>
-        <div className="relative bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-purple-500/20 p-8">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-2xl">
-              <HelpCircle className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent mb-2">
-              Alien Support Center
-            </h1>
-            <p className="text-purple-200/80 text-lg">
-              Our intergalactic support team is here to help you navigate the cosmos of shipping
-            </p>
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <HelpCircle className="w-8 h-8 text-white" />
           </div>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">Support Center</h1>
+          <p className="text-gray-600 text-lg">Our support team is here to help you with any questions or issues</p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex space-x-2 bg-slate-800/50 p-2 rounded-2xl border border-purple-500/20">
-        {tabs.map((tab, i) => {
-          const Icon = tab.icon
-          return (
-            <button
-              key={tab.label}
-              className={`flex-1 flex items-center justify-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
-                i === activeTab
-                  ? "bg-gradient-to-r from-purple-500/80 to-blue-500/80 text-white shadow-lg border border-purple-400/30"
-                  : "text-purple-200 hover:bg-gradient-to-r hover:from-purple-500/20 hover:to-blue-500/20 hover:text-white"
-              }`}
-              onClick={() => setActiveTab(i)}
-            >
-              <Icon className="w-5 h-5" />
-              <span>{tab.label}</span>
-            </button>
-          )
-        })}
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-2">
+        <div className="flex space-x-2">
+          {tabs.map((tab, i) => {
+            const Icon = tab.icon
+            return (
+              <button
+                key={tab.label}
+                className={`flex-1 flex items-center justify-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                  i === activeTab
+                    ? "bg-purple-500 text-white shadow-md"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                }`}
+                onClick={() => setActiveTab(i)}
+              >
+                <Icon className="w-5 h-5" />
+                <span>{tab.label}</span>
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* Success/Error Messages */}
       {success && (
-        <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-400/20 rounded-xl p-4 flex items-center">
-          <CheckCircle className="w-5 h-5 text-green-400 mr-3" />
-          <span className="text-green-200 font-medium">{success}</span>
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center">
+          <CheckCircle className="w-5 h-5 text-green-500 mr-3" />
+          <span className="text-green-800 font-medium">{success}</span>
         </div>
       )}
 
       {error && (
-        <div className="bg-gradient-to-r from-red-500/10 to-pink-500/10 border border-red-400/20 rounded-xl p-4 flex items-center">
-          <AlertCircle className="w-5 h-5 text-red-400 mr-3" />
-          <span className="text-red-200 font-medium">{error}</span>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center">
+          <AlertCircle className="w-5 h-5 text-red-500 mr-3" />
+          <span className="text-red-800 font-medium">{error}</span>
         </div>
       )}
 
       {/* Tab Content */}
       {activeTab === 0 && (
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-blue-500/5 rounded-2xl blur-xl"></div>
-          <div className="relative bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-purple-500/20 p-8 max-w-2xl mx-auto">
-            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-              <MessageSquare className="w-6 h-6 mr-3 text-purple-400" />
-              Create Support Ticket
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-purple-300 mb-2">Page/Section</label>
-                <select
-                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white focus:border-purple-400 focus:ring-purple-400/20 focus:ring-2 outline-none"
-                  value={page}
-                  onChange={(e) => setPage(e.target.value)}
-                  required
-                >
-                  {PAGES.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-purple-300 mb-2">Message</label>
-                <textarea
-                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-400 focus:border-purple-400 focus:ring-purple-400/20 focus:ring-2 outline-none resize-none"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  required
-                  rows={6}
-                  placeholder="Describe your issue or question in detail..."
-                />
-              </div>
-              <Button
-                type="submit"
-                disabled={submitting}
-                className="w-full py-3 bg-gradient-to-r from-purple-500/80 to-blue-500/80 hover:from-purple-500 hover:to-blue-500 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl border border-purple-400/20 hover:border-purple-400/40"
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 max-w-2xl mx-auto">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+            <MessageSquare className="w-6 h-6 mr-3 text-purple-500" />
+            Create Support Ticket
+          </h2>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Page/Section</label>
+              <select
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl text-gray-900 focus:border-purple-500 focus:ring-purple-500 focus:ring-2 outline-none"
+                value={page}
+                onChange={(e) => setPage(e.target.value)}
+                required
               >
-                {submitting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                    Transmitting...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4 mr-2" />
-                    Send to Alien Support
-                  </>
-                )}
-              </Button>
-            </form>
-          </div>
+                {PAGES.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
+              <textarea
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:border-purple-500 focus:ring-purple-500 focus:ring-2 outline-none resize-none"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                required
+                rows={6}
+                placeholder="Describe your issue or question in detail..."
+              />
+            </div>
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="w-full py-3 bg-purple-500 hover:bg-purple-600 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
+            >
+              {submitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  Submit Ticket
+                </>
+              )}
+            </Button>
+          </form>
         </div>
       )}
 
       {activeTab === 1 && (
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-2xl blur-xl"></div>
-          <div className="relative bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-blue-500/20 p-8">
-            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-              <FileText className="w-6 h-6 mr-3 text-blue-400" />
-              Your Support Tickets
-            </h2>
-            {loadingTickets ? (
-              <div className="text-center py-12">
-                <div className="w-12 h-12 border-4 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-blue-200">Loading your tickets...</p>
-              </div>
-            ) : tickets.length === 0 ? (
-              <div className="text-center py-12">
-                <MessageSquare className="w-16 h-16 text-slate-500 mx-auto mb-4" />
-                <p className="text-slate-400 text-lg">No support tickets found</p>
-                <p className="text-slate-500">Create your first ticket to get help from our alien support team</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {tickets.map((ticket) => (
-                  <div key={ticket.id} className="bg-slate-700/30 rounded-xl border border-slate-600/30 p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h3 className="font-semibold text-white mb-1">{ticket.page}</h3>
-                        <p className="text-slate-300 text-sm line-clamp-2">{ticket.message}</p>
-                      </div>
-                      <div
-                        className={`px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r ${getStatusColor(ticket.status)} border`}
-                      >
-                        {ticket.status}
-                      </div>
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+            <FileText className="w-6 h-6 mr-3 text-blue-500" />
+            Your Support Tickets
+          </h2>
+          {loadingTickets ? (
+            <div className="text-center py-12">
+              <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading your tickets...</p>
+            </div>
+          ) : tickets.length === 0 ? (
+            <div className="text-center py-12">
+              <MessageSquare className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600 text-lg">No support tickets found</p>
+              <p className="text-gray-500">Create your first ticket to get help from our support team</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {tickets.map((ticket) => (
+                <div key={ticket.id} className="bg-gray-50 rounded-xl border border-gray-200 p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-1">{ticket.page}</h3>
+                      <p className="text-gray-600 text-sm line-clamp-2">{ticket.message}</p>
                     </div>
-                    <div className="flex items-center text-xs text-slate-400">
-                      <Clock className="w-4 h-4 mr-1" />
-                      {new Date(ticket.created_at).toLocaleString()}
+                    <div
+                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(ticket.status)}`}
+                    >
+                      {ticket.status}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  <div className="flex items-center text-xs text-gray-500">
+                    <Clock className="w-4 h-4 mr-1" />
+                    {new Date(ticket.created_at).toLocaleString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
       {activeTab === 2 && (
         <div className="space-y-8">
           {/* Search Bar */}
-          <div className="relative max-w-2xl mx-auto">
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-2xl blur-xl"></div>
-            <div className="relative bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-purple-500/20 p-2">
-              <div className="flex items-center">
-                <Search className="w-5 h-5 text-purple-400 ml-4" />
-                <Input
-                  type="text"
-                  placeholder="Search the cosmic knowledge base..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1 bg-transparent border-none text-white placeholder-slate-400 focus:ring-0 focus:border-none text-lg"
-                />
-              </div>
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 max-w-2xl mx-auto">
+            <div className="flex items-center">
+              <Search className="w-5 h-5 text-gray-400 ml-4" />
+              <Input
+                type="text"
+                placeholder="Search the knowledge base..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1 bg-transparent border-none text-gray-900 placeholder-gray-500 focus:ring-0 focus:border-none text-lg"
+              />
             </div>
           </div>
 
@@ -422,24 +407,21 @@ export default function Support() {
             {filteredFaqs.map((category) => {
               const Icon = category.icon
               return (
-                <div key={category.category} className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-blue-500/5 rounded-2xl blur-xl"></div>
-                  <div className="relative bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-purple-500/20 p-8">
-                    <h3 className="text-2xl font-bold text-white mb-6 flex items-center">
-                      <Icon className="w-6 h-6 mr-3 text-purple-400" />
-                      {category.category}
-                    </h3>
-                    <div className="space-y-6">
-                      {category.items.map((item, idx) => (
-                        <div key={idx} className="bg-slate-700/30 rounded-xl border border-slate-600/30 p-6">
-                          <h4 className="font-semibold text-lg text-white mb-3 flex items-start">
-                            <Sparkles className="w-5 h-5 text-purple-400 mr-3 mt-0.5 flex-shrink-0" />
-                            {item.q}
-                          </h4>
-                          <p className="text-slate-300 leading-relaxed pl-8">{item.a}</p>
-                        </div>
-                      ))}
-                    </div>
+                <div key={category.category} className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                    <Icon className="w-6 h-6 mr-3 text-purple-500" />
+                    {category.category}
+                  </h3>
+                  <div className="space-y-6">
+                    {category.items.map((item, idx) => (
+                      <div key={idx} className="bg-gray-50 rounded-xl border border-gray-200 p-6">
+                        <h4 className="font-semibold text-lg text-gray-900 mb-3 flex items-start">
+                          <Sparkles className="w-5 h-5 text-purple-500 mr-3 mt-0.5 flex-shrink-0" />
+                          {item.q}
+                        </h4>
+                        <p className="text-gray-600 leading-relaxed pl-8">{item.a}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )
@@ -447,24 +429,21 @@ export default function Support() {
           </div>
 
           {/* Contact Section */}
-          <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-green-500/20 to-blue-500/20 rounded-2xl blur-xl"></div>
-            <div className="relative bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-green-500/20 p-8 text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-2xl">
-                <Mail className="w-8 h-8 text-white" />
-              </div>
-              <h4 className="text-2xl font-bold text-white mb-2">Still Need Help?</h4>
-              <p className="text-purple-200/80 mb-6">Our alien support team is standing by across the galaxy</p>
-              <Button
-                asChild
-                className="px-8 py-3 bg-gradient-to-r from-green-500/80 to-blue-500/80 hover:from-green-500 hover:to-blue-500 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl border border-green-400/20 hover:border-green-400/40"
-              >
-                <a href="mailto:support@alienshipper.com">
-                  <Mail className="w-4 h-4 mr-2" />
-                  Contact Alien Support
-                </a>
-              </Button>
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+              <Mail className="w-8 h-8 text-white" />
             </div>
+            <h4 className="text-2xl font-bold text-gray-900 mb-2">Still Need Help?</h4>
+            <p className="text-gray-600 mb-6">Our support team is standing by to assist you</p>
+            <Button
+              asChild
+              className="px-8 py-3 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
+            >
+              <a href="mailto:support@alienshipper.com">
+                <Mail className="w-4 h-4 mr-2" />
+                Contact Support
+              </a>
+            </Button>
           </div>
         </div>
       )}
