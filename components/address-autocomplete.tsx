@@ -4,148 +4,135 @@ import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
 import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { MapPin, Loader2 } from "lucide-react"
 import { useAddressAutocomplete } from "@/hooks/use-address-autocomplete"
-import type { LocationIQSuggestion } from "@/lib/types/address"
 import { cn } from "@/lib/utils"
 
 interface AddressAutocompleteProps {
-  value: string
-  onChange: (value: string) => void
-  onAddressSelect: (suggestion: LocationIQSuggestion) => void
-  countryCode?: string
+  value?: string
+  onChange?: (value: string) => void
+  onSelect?: (address: any) => void
   placeholder?: string
   className?: string
 }
 
 export function AddressAutocomplete({
-  value,
+  value = "",
   onChange,
-  onAddressSelect,
-  countryCode = "US",
-  placeholder = "Enter address",
+  onSelect,
+  placeholder = "Start typing an address...",
   className,
 }: AddressAutocompleteProps) {
-  const [isOpen, setIsOpen] = useState(false)
   const [inputValue, setInputValue] = useState(value)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [selectedIndex, setSelectedIndex] = useState(-1)
   const inputRef = useRef<HTMLInputElement>(null)
-  const dropdownRef = useRef<HTMLDivElement>(null)
+  const suggestionsRef = useRef<HTMLDivElement>(null)
 
-  const { suggestions, isLoading, error, search, clearSuggestions } = useAddressAutocomplete(countryCode)
+  const { suggestions, isLoading, error, search, clearSuggestions } = useAddressAutocomplete()
 
   useEffect(() => {
     setInputValue(value)
   }, [value])
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node) &&
-        inputRef.current &&
-        !inputRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false)
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [])
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value
     setInputValue(newValue)
-    onChange(newValue)
+    onChange?.(newValue)
 
-    if (newValue.trim().length >= 3) {
+    if (newValue.length >= 3) {
       search(newValue)
-      setIsOpen(true)
+      setShowSuggestions(true)
     } else {
       clearSuggestions()
-      setIsOpen(false)
+      setShowSuggestions(false)
     }
+    setSelectedIndex(-1)
   }
 
-  const handleSuggestionClick = (suggestion: LocationIQSuggestion) => {
+  const handleSuggestionClick = (suggestion: any) => {
     setInputValue(suggestion.display_name)
-    onChange(suggestion.display_name)
-    onAddressSelect(suggestion)
-    setIsOpen(false)
+    onChange?.(suggestion.display_name)
+    onSelect?.(suggestion)
+    setShowSuggestions(false)
     clearSuggestions()
   }
 
-  const handleInputFocus = () => {
-    if (suggestions.length > 0 && inputValue.trim().length >= 3) {
-      setIsOpen(true)
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!showSuggestions || suggestions.length === 0) return
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault()
+        setSelectedIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0))
+        break
+      case "ArrowUp":
+        e.preventDefault()
+        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1))
+        break
+      case "Enter":
+        e.preventDefault()
+        if (selectedIndex >= 0 && suggestions[selectedIndex]) {
+          handleSuggestionClick(suggestions[selectedIndex])
+        }
+        break
+      case "Escape":
+        setShowSuggestions(false)
+        setSelectedIndex(-1)
+        break
     }
   }
 
-  const showDropdown = isOpen && (suggestions.length > 0 || error || (isLoading && inputValue.trim().length >= 3))
+  const handleBlur = () => {
+    // Delay hiding suggestions to allow for clicks
+    setTimeout(() => {
+      setShowSuggestions(false)
+      setSelectedIndex(-1)
+    }, 200)
+  }
 
   return (
     <div className="relative">
-      <div className="relative">
-        <Input
-          ref={inputRef}
-          type="text"
-          value={inputValue}
-          onChange={handleInputChange}
-          onFocus={handleInputFocus}
-          placeholder={placeholder}
-          className={cn("pr-10", className)}
-        />
-        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-          ) : (
-            <MapPin className="h-4 w-4 text-gray-400" />
-          )}
-        </div>
-      </div>
+      <Input
+        ref={inputRef}
+        value={inputValue}
+        onChange={handleInputChange}
+        onKeyDown={handleKeyDown}
+        onBlur={handleBlur}
+        onFocus={() => {
+          if (suggestions.length > 0) {
+            setShowSuggestions(true)
+          }
+        }}
+        placeholder={placeholder}
+        className={className}
+        autoComplete="off"
+      />
 
-      {showDropdown && (
+      {showSuggestions && (
         <div
-          ref={dropdownRef}
+          ref={suggestionsRef}
           className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto"
         >
-          {error ? (
-            <div className="p-3 text-sm text-red-600">
-              <p>{error}</p>
-            </div>
-          ) : isLoading ? (
-            <div className="p-3 text-sm text-gray-500">
-              <p>Searching...</p>
-            </div>
-          ) : suggestions.length === 0 && inputValue.trim().length >= 3 ? (
-            <div className="p-3 text-sm text-gray-500">
-              <p>No addresses found</p>
-            </div>
-          ) : (
-            suggestions.map((suggestion) => (
-              <Button
-                key={suggestion.place_id}
-                variant="ghost"
-                className="w-full justify-start text-left h-auto p-3 hover:bg-gray-50"
-                onClick={() => handleSuggestionClick(suggestion)}
-              >
-                <div className="flex items-start gap-2">
-                  <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{suggestion.display_name}</p>
-                    {suggestion.address && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        {[suggestion.address.city, suggestion.address.state, suggestion.address.country]
-                          .filter(Boolean)
-                          .join(", ")}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </Button>
-            ))
+          {isLoading && <div className="px-3 py-2 text-sm text-gray-500">Searching addresses...</div>}
+
+          {error && <div className="px-3 py-2 text-sm text-red-500">{error}</div>}
+
+          {!isLoading && !error && suggestions.length === 0 && inputValue.length >= 3 && (
+            <div className="px-3 py-2 text-sm text-gray-500">No addresses found</div>
           )}
+
+          {suggestions.map((suggestion, index) => (
+            <div
+              key={suggestion.place_id}
+              className={cn(
+                "px-3 py-2 cursor-pointer text-sm hover:bg-gray-100",
+                selectedIndex === index && "bg-gray-100",
+              )}
+              onClick={() => handleSuggestionClick(suggestion)}
+            >
+              <div className="font-medium">{suggestion.display_name}</div>
+            </div>
+          ))}
         </div>
       )}
     </div>

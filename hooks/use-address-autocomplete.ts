@@ -1,18 +1,17 @@
 "use client"
 
 import { useState, useCallback, useRef } from "react"
-import { debounce } from "lodash"
 
 interface AddressSuggestion {
   place_id: string
   display_name: string
   address: {
-    house_number: string
-    road: string
-    city: string
-    state: string
-    postcode: string
-    country: string
+    house_number?: string
+    road?: string
+    city?: string
+    state?: string
+    postcode?: string
+    country?: string
   }
 }
 
@@ -21,62 +20,58 @@ export function useAddressAutocomplete() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastQueryRef = useRef<string>("")
 
-  const searchAddresses = useCallback(
-    debounce(async (query: string) => {
-      // Don't search if query is the same as last query
-      if (query === lastQueryRef.current) {
-        return
-      }
+  const search = useCallback(async (query: string) => {
+    // Clear previous timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+    }
 
-      lastQueryRef.current = query
+    // Don't search if query is too short or same as last query
+    if (!query || query.length < 3 || query === lastQueryRef.current) {
+      setSuggestions([])
+      setIsLoading(false)
+      return
+    }
 
-      if (!query || query.length < 3) {
-        setSuggestions([])
-        setIsLoading(false)
-        return
-      }
+    // Cancel previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
 
-      // Cancel previous request
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
-      }
+    // Create new abort controller
+    abortControllerRef.current = new AbortController()
+    lastQueryRef.current = query
 
-      // Create new abort controller
-      abortControllerRef.current = new AbortController()
-
+    // Debounce the search
+    timeoutRef.current = setTimeout(async () => {
       try {
         setIsLoading(true)
         setError(null)
 
         const response = await fetch(`/api/address-autocomplete?q=${encodeURIComponent(query)}`, {
-          signal: abortControllerRef.current.signal,
+          signal: abortControllerRef.current?.signal,
         })
 
         if (!response.ok) {
-          if (response.status === 429) {
-            throw new Error("Rate limit exceeded. Please try again later.")
-          }
           throw new Error(`HTTP error! status: ${response.status}`)
         }
 
         const data = await response.json()
         setSuggestions(data.suggestions || [])
-      } catch (error: any) {
-        if (error.name === "AbortError") {
-          // Request was cancelled, ignore
-          return
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          console.error("Address search error:", err)
+          setError("Failed to search addresses")
+          setSuggestions([])
         }
-        console.error("Address autocomplete error:", error)
-        setError(error.message)
-        setSuggestions([])
       } finally {
         setIsLoading(false)
       }
-    }, 300),
-    [],
-  )
+    }, 300)
+  }, [])
 
   const clearSuggestions = useCallback(() => {
     setSuggestions([])
@@ -88,7 +83,7 @@ export function useAddressAutocomplete() {
     suggestions,
     isLoading,
     error,
-    search: searchAddresses,
+    search,
     clearSuggestions,
   }
 }

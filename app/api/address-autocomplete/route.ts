@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const apiKey = process.env.LOCATION_IQ_API_KEY
     if (!apiKey) {
       console.error("LOCATION_IQ_API_KEY is not set")
-      return NextResponse.json({ error: "API key not configured" }, { status: 500 })
+      return NextResponse.json({ suggestions: [] })
     }
 
     const url = `https://us1.locationiq.com/v1/search.php?key=${apiKey}&q=${encodeURIComponent(limitedQuery)}&format=json&limit=5&addressdetails=1&countrycodes=us,ca`
@@ -32,24 +32,22 @@ export async function GET(request: NextRequest) {
         // Handle "Unable to geocode" errors gracefully
         return NextResponse.json({ suggestions: [] })
       }
-      if (response.status === 429) {
-        return NextResponse.json({ error: "Rate limit exceeded. Please try again later." }, { status: 429 })
-      }
       throw new Error(`LocationIQ API error: ${response.status}`)
     }
 
     const data = await response.json()
 
-    // Handle case where API returns an error object instead of array
-    if (!Array.isArray(data)) {
-      if (data.error) {
-        return NextResponse.json({ suggestions: [] })
-      }
+    // Handle API error responses
+    if (data.error) {
+      console.warn("LocationIQ API error:", data.error)
       return NextResponse.json({ suggestions: [] })
     }
 
-    const suggestions = data.map((item: any) => ({
-      place_id: item.place_id,
+    // Ensure data is an array
+    const results = Array.isArray(data) ? data : []
+
+    const suggestions = results.map((item: any) => ({
+      place_id: item.place_id || item.osm_id || Math.random().toString(),
       display_name: item.display_name,
       address: {
         house_number: item.address?.house_number || "",
