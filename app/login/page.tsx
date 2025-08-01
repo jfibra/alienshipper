@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import Link from "next/link"
@@ -13,8 +13,13 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
-import { Eye, EyeOff, Mail, Lock, Loader2, Rocket, CheckCircle } from "lucide-react"
+import { Eye, EyeOff, Mail, Lock, Loader2, Rocket, CheckCircle, AlertTriangle } from "lucide-react"
 import { useUserSession } from "@/hooks/use-user-session"
+
+// Rate limiting configuration
+const RATE_LIMIT_DELAY = 60000 // 1 minute
+const MAX_ATTEMPTS = 3
+const RETRY_DELAYS = [1000, 3000, 5000] // Progressive delays for retries
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -25,6 +30,11 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const [magicLinkSent, setMagicLinkSent] = useState(false)
   const [success, setSuccess] = useState("")
+  const [attemptCount, setAttemptCount] = useState(0)
+  const [isRateLimited, setIsRateLimited] = useState(false)
+  const [rateLimitEndTime, setRateLimitEndTime] = useState<number | null>(null)
+  const [timeRemaining, setTimeRemaining] = useState(0)
+
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, loading } = useUserSession()
@@ -44,28 +54,117 @@ export default function LoginPage() {
     }
   }, [searchParams])
 
+  // Rate limit timer
+  useEffect(() => {
+    let interval: NodeJS.Timeout
+
+    if (isRateLimited && rateLimitEndTime) {
+      interval = setInterval(() => {
+        const now = Date.now()
+        const remaining = Math.max(0, rateLimitEndTime - now)
+        setTimeRemaining(Math.ceil(remaining / 1000))
+
+        if (remaining <= 0) {
+          setIsRateLimited(false)
+          setRateLimitEndTime(null)
+          setAttemptCount(0)
+          setError("")
+        }
+      }, 1000)
+    }
+
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [isRateLimited, rateLimitEndTime])
+
+  // Helper function to handle rate limiting
+  const handleRateLimit = useCallback(() => {
+    const newAttemptCount = attemptCount + 1
+    setAttemptCount(newAttemptCount)
+
+    if (newAttemptCount >= MAX_ATTEMPTS) {
+      setIsRateLimited(true)
+      setRateLimitEndTime(Date.now() + RATE_LIMIT_DELAY)
+      setError(`Too many login attempts. Please wait ${RATE_LIMIT_DELAY / 1000} seconds before trying again.`)
+    }
+  }, [attemptCount])
+
+  // Retry function with exponential backoff
+  const retryWithBackoff = useCallback(async (operation: () => Promise<any>, maxRetries = 3): Promise<any> => {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        return await operation()
+      } catch (error: any) {
+        const isRateLimitError =
+          error.message?.toLowerCase().includes("rate limit") ||
+          error.message?.toLowerCase().includes("too many requests")
+
+        if (isRateLimitError && attempt < maxRetries - 1) {
+          const delay = RETRY_DELAYS[attempt] || 5000
+          await new Promise((resolve) => setTimeout(resolve, delay))
+          continue
+        }
+
+        throw error
+      }
+    }
+  }, [])
+
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (isRateLimited) {
+      setError(`Please wait ${timeRemaining} seconds before trying again.`)
+      return
+    }
+
     setIsLoading(true)
     setError("")
     setSuccess("")
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
+      const loginOperation = async () => {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        })
 
-      if (error) throw error
+        if (error) throw error
+        return data
+      }
+
+      const data = await retryWithBackoff(loginOperation)
 
       if (data.user) {
+        // Reset attempt count on successful login
+        setAttemptCount(0)
+        setIsRateLimited(false)
+        setRateLimitEndTime(null)
+
         // The auth state change will be handled by the useUserSession hook
         // and middleware will handle the redirect
         router.refresh()
       }
     } catch (err: any) {
       console.error("Login error:", err)
-      setError(err.message || "An error occurred during login")
+
+      const errorMessage = err.message || "An error occurred during login"
+      const isRateLimitError =
+        errorMessage.toLowerCase().includes("rate limit") || errorMessage.toLowerCase().includes("too many requests")
+
+      if (isRateLimitError) {
+        handleRateLimit()
+        setError(
+          "Too many login attempts. Please wait a moment before trying again, or use the magic link option below.",
+        )
+      } else {
+        setError(errorMessage)
+        // Only increment attempt count for actual failed login attempts, not rate limits
+        if (!errorMessage.toLowerCase().includes("invalid")) {
+          handleRateLimit()
+        }
+      }
     } finally {
       setIsLoading(false)
     }
@@ -77,23 +176,40 @@ export default function LoginPage() {
       return
     }
 
+    if (isRateLimited) {
+      setError(`Please wait ${timeRemaining} seconds before trying again.`)
+      return
+    }
+
     setIsMagicLinkLoading(true)
     setError("")
     setSuccess("")
 
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/magic-link-callback`,
-        },
-      })
+      const magicLinkOperation = async () => {
+        const { error } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/magic-link-callback`,
+          },
+        })
 
-      if (error) throw error
+        if (error) throw error
+      }
 
+      await retryWithBackoff(magicLinkOperation)
       setMagicLinkSent(true)
     } catch (err: any) {
-      setError(err.message || "Failed to send magic link")
+      const errorMessage = err.message || "Failed to send magic link"
+      const isRateLimitError =
+        errorMessage.toLowerCase().includes("rate limit") || errorMessage.toLowerCase().includes("too many requests")
+
+      if (isRateLimitError) {
+        handleRateLimit()
+        setError("Too many requests. Please wait a moment before requesting another magic link.")
+      } else {
+        setError(errorMessage)
+      }
     } finally {
       setIsMagicLinkLoading(false)
     }
@@ -207,7 +323,22 @@ export default function LoginPage() {
 
             {error && (
               <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {isRateLimited && (
+              <Alert className="border-orange-200 bg-orange-50">
+                <AlertTriangle className="h-4 w-4 text-orange-600" />
+                <AlertDescription className="text-orange-800">
+                  Rate limit active. Please wait {timeRemaining} seconds before trying again.
+                  {timeRemaining > 30 && (
+                    <div className="mt-2">
+                      <span className="text-sm">Try using the magic link option below instead.</span>
+                    </div>
+                  )}
+                </AlertDescription>
               </Alert>
             )}
 
@@ -226,7 +357,7 @@ export default function LoginPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10 h-12 border-2 border-gray-200 focus:border-purple-500 rounded-lg"
                     required
-                    disabled={isLoading}
+                    disabled={isLoading || isRateLimited}
                   />
                 </div>
               </div>
@@ -245,13 +376,13 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10 pr-12 h-12 border-2 border-gray-200 focus:border-purple-500 rounded-lg"
                     required
-                    disabled={isLoading}
+                    disabled={isLoading || isRateLimited}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 transition-colors"
-                    disabled={isLoading}
+                    disabled={isLoading || isRateLimited}
                   >
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
@@ -267,17 +398,25 @@ export default function LoginPage() {
                     Forgot password?
                   </Link>
                 </div>
+                {attemptCount > 0 && !isRateLimited && (
+                  <div className="text-xs text-orange-600">{MAX_ATTEMPTS - attemptCount} attempts remaining</div>
+                )}
               </div>
 
               <Button
                 type="submit"
-                className="w-full h-12 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
-                disabled={isLoading}
+                className="w-full h-12 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isLoading || isRateLimited}
               >
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                     Signing In...
+                  </>
+                ) : isRateLimited ? (
+                  <>
+                    <AlertTriangle className="mr-2 h-5 w-5" />
+                    Wait {timeRemaining}s
                   </>
                 ) : (
                   <>
@@ -313,6 +452,7 @@ export default function LoginPage() {
                 <>
                   <Mail className="mr-2 h-5 w-5" />
                   Send Magic Link
+                  {isRateLimited && <span className="ml-2 text-xs text-green-600">(Recommended)</span>}
                 </>
               )}
             </Button>
