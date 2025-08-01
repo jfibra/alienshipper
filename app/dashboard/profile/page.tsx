@@ -50,6 +50,13 @@ const volumeOptions = ["1-50", "51-200", "201-500", "501-1000", "1000+"]
 
 export default function Profile() {
   const { user } = useUser()
+  // Debug: log user id and email
+  useEffect(() => {
+    if (user) {
+      console.log("[Profile Debug] Auth user.id:", user.id)
+      console.log("[Profile Debug] Auth user.email:", user.email)
+    }
+  }, [user])
   const supabase = createClientComponentClient()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)

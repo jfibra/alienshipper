@@ -100,7 +100,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* Sidebar */}
-      <aside className="w-72 bg-gradient-to-b from-slate-800/90 to-slate-900/90 backdrop-blur-xl border-r border-purple-500/20 flex flex-col shadow-2xl relative overflow-hidden">
+      <aside className="w-72 bg-gradient-to-b from-slate-800/90 to-slate-900/90 backdrop-blur-xl border-r border-purple-500/20 flex flex-col shadow-2xl relative overflow-hidden pt-12">
         {/* Cosmic background effects */}
         <div className="absolute inset-0 bg-gradient-to-b from-purple-500/5 to-blue-500/5"></div>
         <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-purple-400/10 to-transparent"></div>
@@ -197,7 +197,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto relative">
+      <main className="flex-1 overflow-auto relative pt-16">
         <div className="absolute inset-0 bg-gradient-to-br from-slate-900/50 to-purple-900/50"></div>
         <div className="relative z-10 p-8">{children}</div>
       </main>
