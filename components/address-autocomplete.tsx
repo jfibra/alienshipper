@@ -59,7 +59,7 @@ export function AddressAutocomplete({
     setInputValue(newValue)
     onChange(newValue)
 
-    if (newValue.length >= 3) {
+    if (newValue.trim().length >= 3) {
       search(newValue)
       setIsOpen(true)
     } else {
@@ -77,10 +77,12 @@ export function AddressAutocomplete({
   }
 
   const handleInputFocus = () => {
-    if (suggestions.length > 0) {
+    if (suggestions.length > 0 && inputValue.trim().length >= 3) {
       setIsOpen(true)
     }
   }
+
+  const showDropdown = isOpen && (suggestions.length > 0 || error || (isLoading && inputValue.trim().length >= 3))
 
   return (
     <div className="relative">
@@ -103,7 +105,7 @@ export function AddressAutocomplete({
         </div>
       </div>
 
-      {isOpen && (suggestions.length > 0 || error) && (
+      {showDropdown && (
         <div
           ref={dropdownRef}
           className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto"
@@ -111,6 +113,14 @@ export function AddressAutocomplete({
           {error ? (
             <div className="p-3 text-sm text-red-600">
               <p>{error}</p>
+            </div>
+          ) : isLoading ? (
+            <div className="p-3 text-sm text-gray-500">
+              <p>Searching...</p>
+            </div>
+          ) : suggestions.length === 0 && inputValue.trim().length >= 3 ? (
+            <div className="p-3 text-sm text-gray-500">
+              <p>No addresses found</p>
             </div>
           ) : (
             suggestions.map((suggestion) => (
