@@ -3,26 +3,31 @@
 import type React from "react"
 
 import { useState } from "react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
-import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Mail, Loader2, Shield, CheckCircle, ArrowLeft } from "lucide-react"
+import { ArrowLeft, Mail, AlertCircle, CheckCircle } from "lucide-react"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [message, setMessage] = useState("")
   const [error, setError] = useState("")
+  const searchParams = useSearchParams()
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
+  // Check for error messages from URL params
+  const urlError = searchParams.get("error")
+  const urlMessage = searchParams.get("message")
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsLoading(true)
     setError("")
-    setSuccess("")
-    setLoading(true)
+    setMessage("")
 
     try {
       const response = await fetch("/api/forgot-password", {
@@ -33,130 +38,93 @@ export default function ForgotPasswordPage() {
 
       const data = await response.json()
 
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to send reset email")
-      }
-
-      if (data.success) {
-        setSuccess("Password reset email sent! Check your inbox for instructions.")
+      if (response.ok) {
+        setMessage(
+          "Password reset email sent! Check your inbox and click the link to reset your password. The link will expire in 1 hour.",
+        )
+        setEmail("")
       } else {
-        throw new Error(data.error || "Failed to send reset email")
+        setError(data.error || "Failed to send reset email")
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to send reset email")
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.")
     } finally {
-      setLoading(false)
+      setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-6">
-            <Image
-              src="/images/alien-shipper-logo.png"
-              alt="AlienShipper"
-              width={200}
-              height={60}
-              className="h-12 w-auto"
-            />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900">Reset Password</h1>
-          <p className="text-gray-600 mt-2">We'll send you a secure reset link</p>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div className="text-center">
+          <Link href="/login" className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-8">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Login
+          </Link>
         </div>
 
-        <Card className="shadow-2xl border-0 bg-white/95 backdrop-blur">
-          <CardHeader className="space-y-1 pb-6">
-            <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center">
-                <Shield className="h-8 w-8 text-white" />
-              </div>
+        <Card>
+          <CardHeader className="text-center">
+            <div className="mx-auto w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mb-4">
+              <Mail className="w-6 h-6 text-purple-600" />
             </div>
-            <CardTitle className="text-2xl text-center font-bold text-gray-900">Forgot Password</CardTitle>
-            <CardDescription className="text-center text-gray-600">
-              Enter your email and we'll send you a password reset link
+            <CardTitle className="text-2xl font-bold">Forgot Password?</CardTitle>
+            <CardDescription>
+              Enter your email address and we'll send you a link to reset your password.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {success && (
-              <Alert className="border-green-200 bg-green-50">
+
+          <CardContent>
+            {/* Show URL error message if present */}
+            {urlError === "expired" && urlMessage && (
+              <Alert className="mb-6 border-orange-200 bg-orange-50">
+                <AlertCircle className="h-4 w-4 text-orange-600" />
+                <AlertDescription className="text-orange-800">{urlMessage}</AlertDescription>
+              </Alert>
+            )}
+
+            {/* Show success message */}
+            {message && (
+              <Alert className="mb-6 border-green-200 bg-green-50">
                 <CheckCircle className="h-4 w-4 text-green-600" />
-                <AlertDescription className="text-green-800">{success}</AlertDescription>
+                <AlertDescription className="text-green-800">{message}</AlertDescription>
               </Alert>
             )}
 
+            {/* Show error message */}
             {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
+              <Alert className="mb-6 border-red-200 bg-red-50">
+                <AlertCircle className="h-4 w-4 text-red-600" />
+                <AlertDescription className="text-red-800">{error}</AlertDescription>
               </Alert>
             )}
 
-            <form onSubmit={handleForgotPassword} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-semibold text-gray-700">
-                  Email Address
-                </Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Enter your email address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10 h-12 border-2 border-gray-200 focus:border-purple-500 rounded-lg"
-                    required
-                  />
-                </div>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <Label htmlFor="email">Email Address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email address"
+                  required
+                  className="mt-1"
+                />
               </div>
 
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                <div className="flex items-start space-x-3">
-                  <Shield className="h-5 w-5 text-amber-600 mt-0.5" />
-                  <div className="text-sm text-amber-800">
-                    <p className="font-medium mb-1">Security Notice:</p>
-                    <ul className="space-y-1 text-xs">
-                      <li>• Reset links expire in 1 hour for security</li>
-                      <li>• Check your spam folder if you don't see the email</li>
-                      <li>• Contact support if you need additional help</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full h-12 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Sending Reset Link...
-                  </>
-                ) : (
-                  <>
-                    <Shield className="mr-2 h-5 w-5" />
-                    Send Reset Link
-                  </>
-                )}
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? "Sending..." : "Send Reset Link"}
               </Button>
             </form>
 
-            <div className="flex items-center justify-center space-x-4 text-sm">
-              <Link
-                href="/login"
-                className="flex items-center text-purple-600 hover:text-purple-500 font-medium transition-colors"
-              >
-                <ArrowLeft className="mr-1 h-4 w-4" />
-                Back to Login
-              </Link>
-              <span className="text-gray-400">|</span>
-              <Link href="/signup" className="text-purple-600 hover:text-purple-500 font-medium transition-colors">
-                Sign up
-              </Link>
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-600">
+                Remember your password?{" "}
+                <Link href="/login" className="font-medium text-purple-600 hover:text-purple-500">
+                  Sign in
+                </Link>
+              </p>
             </div>
           </CardContent>
         </Card>

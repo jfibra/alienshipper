@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -13,6 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { Eye, EyeOff, Mail, Lock, Loader2, Rocket, CheckCircle } from "lucide-react"
+import { useUserSession } from "@/hooks/use-user-session"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -25,6 +27,15 @@ export default function LoginPage() {
   const [success, setSuccess] = useState("")
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { user, loading } = useUserSession()
+  const supabase = createClientComponentClient()
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace("/dashboard")
+    }
+  }, [user, loading, router])
 
   useEffect(() => {
     const confirmed = searchParams.get("confirmed")
@@ -40,26 +51,20 @@ export default function LoginPage() {
     setSuccess("")
 
     try {
-      const response = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       })
 
-      const data = await response.json()
+      if (error) throw error
 
-      if (!response.ok) {
-        throw new Error(data.error || "Login failed")
-      }
-
-      if (data.success) {
-        // Store user session
-        localStorage.setItem("user", JSON.stringify(data.user))
-        router.push("/dashboard")
-      } else {
-        throw new Error(data.error || "Login failed")
+      if (data.user) {
+        // The auth state change will be handled by the useUserSession hook
+        // and middleware will handle the redirect
+        router.refresh()
       }
     } catch (err: any) {
+      console.error("Login error:", err)
       setError(err.message || "An error occurred during login")
     } finally {
       setIsLoading(false)
@@ -77,28 +82,35 @@ export default function LoginPage() {
     setSuccess("")
 
     try {
-      const response = await fetch("/api/magic-link", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/magic-link-callback`,
+        },
       })
 
-      const data = await response.json()
+      if (error) throw error
 
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to send magic link")
-      }
-
-      if (data.success) {
-        setMagicLinkSent(true)
-      } else {
-        throw new Error(data.error || "Failed to send magic link")
-      }
+      setMagicLinkSent(true)
     } catch (err: any) {
       setError(err.message || "Failed to send magic link")
     } finally {
       setIsMagicLinkLoading(false)
     }
+  }
+
+  // Show loading while checking auth state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  // Don't render if user is already logged in (will redirect)
+  if (user) {
+    return null
   }
 
   if (magicLinkSent) {
@@ -214,6 +226,7 @@ export default function LoginPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10 h-12 border-2 border-gray-200 focus:border-purple-500 rounded-lg"
                     required
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -232,11 +245,13 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10 pr-12 h-12 border-2 border-gray-200 focus:border-purple-500 rounded-lg"
                     required
+                    disabled={isLoading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 transition-colors"
+                    disabled={isLoading}
                   >
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
@@ -286,7 +301,7 @@ export default function LoginPage() {
               type="button"
               variant="outline"
               onClick={handleMagicLink}
-              disabled={isMagicLinkLoading || !email}
+              disabled={isMagicLinkLoading || !email || isLoading}
               className="w-full h-12 bg-transparent border-2 border-gray-200 hover:bg-gray-50 hover:border-purple-300 transition-all duration-200"
             >
               {isMagicLinkLoading ? (
