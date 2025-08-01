@@ -1,11 +1,10 @@
-import { createClientComponentClient, createServerComponentClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
 // Client-side Supabase client (for components)
 export const createSupabaseClient = () => createClientComponentClient()
 
-// Server-side Supabase client (for server components)
-export const createSupabaseServerClient = () => createServerComponentClient({ cookies })
+// Export a default supabase client instance
+export const supabase = createClientComponentClient()
 
 // Types
 export interface User {
@@ -42,15 +41,7 @@ export interface Shipment {
   updated_at: string
 }
 
-// Helper functions
-export const getCurrentUser = async () => {
-  const supabase = createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  return user
-}
-
+// Helper functions for client-side use
 export const signOut = async () => {
   const supabase = createSupabaseClient()
   const { error } = await supabase.auth.signOut()
