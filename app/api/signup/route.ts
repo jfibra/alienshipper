@@ -55,21 +55,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to create user" }, { status: 400 })
     }
 
-    // Create profile in profiles table
-    const { error: profileError } = await supabase.from("profiles").insert({
-      user_id: authData.user.id,
+    // Create user details in users table
+    const { error: userError } = await supabase.from("users").insert({
+      id: authData.user.id,
+      email,
       first_name: firstName,
       last_name: lastName,
       company,
       phone,
       business_type: businessType,
-      monthly_volume: monthlyVolume,
-      newsletter,
+      monthly_shipping_volume: monthlyVolume,
+      agreed_terms: agreedTerms,
+      newsletter_opt_in: newsletter,
     })
-
-    if (profileError) {
-      console.error("Profile creation error:", profileError)
-      // Don't fail the signup if profile creation fails
+    if (userError) {
+      console.error("User table insert error:", userError)
+      // Don't fail the signup if user table insert fails
     }
 
     return NextResponse.json({
