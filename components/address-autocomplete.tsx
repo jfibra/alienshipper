@@ -8,131 +8,125 @@ import { useAddressAutocomplete } from "@/hooks/use-address-autocomplete"
 import { cn } from "@/lib/utils"
 
 interface AddressAutocompleteProps {
-  value?: string
-  onChange?: (value: string) => void
+  value: string
+  onChange: (value: string) => void
   onSelect?: (address: any) => void
   placeholder?: string
   className?: string
 }
 
 export function AddressAutocomplete({
-  value = "",
+  value,
   onChange,
   onSelect,
   placeholder = "Start typing an address...",
   className,
 }: AddressAutocompleteProps) {
-  const [inputValue, setInputValue] = useState(value)
-  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const inputRef = useRef<HTMLInputElement>(null)
-  const suggestionsRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLUListElement>(null)
 
   const { suggestions, isLoading, error, search, clearSuggestions } = useAddressAutocomplete()
 
-  useEffect(() => {
-    setInputValue(value)
-  }, [value])
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value
-    setInputValue(newValue)
-    onChange?.(newValue)
-
-    if (newValue.length >= 3) {
-      search(newValue)
-      setShowSuggestions(true)
-    } else {
-      clearSuggestions()
-      setShowSuggestions(false)
-    }
+  const handleInputChange = (newValue: string) => {
+    onChange(newValue)
+    search(newValue)
+    setIsOpen(true)
     setSelectedIndex(-1)
   }
 
-  const handleSuggestionClick = (suggestion: any) => {
-    setInputValue(suggestion.display_name)
-    onChange?.(suggestion.display_name)
+  const handleSelect = (suggestion: any) => {
+    onChange(suggestion.display_name)
     onSelect?.(suggestion)
-    setShowSuggestions(false)
+    setIsOpen(false)
     clearSuggestions()
+    setSelectedIndex(-1)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!showSuggestions || suggestions.length === 0) return
+    if (!isOpen || suggestions.length === 0) return
 
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault()
-        setSelectedIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0))
+        setSelectedIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : prev))
         break
       case "ArrowUp":
         e.preventDefault()
-        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1))
+        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : -1))
         break
       case "Enter":
         e.preventDefault()
-        if (selectedIndex >= 0 && suggestions[selectedIndex]) {
-          handleSuggestionClick(suggestions[selectedIndex])
+        if (selectedIndex >= 0) {
+          handleSelect(suggestions[selectedIndex])
         }
         break
       case "Escape":
-        setShowSuggestions(false)
+        setIsOpen(false)
         setSelectedIndex(-1)
+        inputRef.current?.blur()
         break
     }
   }
 
   const handleBlur = () => {
-    // Delay hiding suggestions to allow for clicks
+    // Delay closing to allow for click events
     setTimeout(() => {
-      setShowSuggestions(false)
+      setIsOpen(false)
       setSelectedIndex(-1)
     }, 200)
   }
+
+  useEffect(() => {
+    if (selectedIndex >= 0 && listRef.current) {
+      const selectedElement = listRef.current.children[selectedIndex] as HTMLElement
+      selectedElement?.scrollIntoView({ block: "nearest" })
+    }
+  }, [selectedIndex])
+
+  const showSuggestions = isOpen && (suggestions.length > 0 || isLoading || error)
 
   return (
     <div className="relative">
       <Input
         ref={inputRef}
-        value={inputValue}
-        onChange={handleInputChange}
+        value={value}
+        onChange={(e) => handleInputChange(e.target.value)}
         onKeyDown={handleKeyDown}
         onBlur={handleBlur}
-        onFocus={() => {
-          if (suggestions.length > 0) {
-            setShowSuggestions(true)
-          }
-        }}
+        onFocus={() => value.length >= 3 && setIsOpen(true)}
         placeholder={placeholder}
         className={className}
         autoComplete="off"
       />
 
       {showSuggestions && (
-        <div
-          ref={suggestionsRef}
-          className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto"
-        >
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
           {isLoading && <div className="px-3 py-2 text-sm text-gray-500">Searching addresses...</div>}
 
           {error && <div className="px-3 py-2 text-sm text-red-500">{error}</div>}
 
-          {!isLoading && !error && suggestions.length === 0 && inputValue.length >= 3 && (
-            <div className="px-3 py-2 text-sm text-gray-500">No addresses found</div>
+          {suggestions.length > 0 && (
+            <ul ref={listRef} className="py-1">
+              {suggestions.map((suggestion, index) => (
+                <li
+                  key={suggestion.place_id}
+                  className={cn(
+                    "px-3 py-2 text-sm cursor-pointer hover:bg-gray-100",
+                    selectedIndex === index && "bg-gray-100",
+                  )}
+                  onClick={() => handleSelect(suggestion)}
+                >
+                  <div className="font-medium">{suggestion.display_name}</div>
+                </li>
+              ))}
+            </ul>
           )}
 
-          {suggestions.map((suggestion, index) => (
-            <div
-              key={suggestion.place_id}
-              className={cn(
-                "px-3 py-2 cursor-pointer text-sm hover:bg-gray-100",
-                selectedIndex === index && "bg-gray-100",
-              )}
-              onClick={() => handleSuggestionClick(suggestion)}
-            >
-              <div className="font-medium">{suggestion.display_name}</div>
-            </div>
-          ))}
+          {!isLoading && !error && suggestions.length === 0 && value.length >= 3 && (
+            <div className="px-3 py-2 text-sm text-gray-500">No addresses found</div>
+          )}
         </div>
       )}
     </div>

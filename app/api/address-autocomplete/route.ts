@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
     const apiKey = process.env.LOCATION_IQ_API_KEY
     if (!apiKey) {
-      console.error("LOCATION_IQ_API_KEY is not set")
+      console.error("LocationIQ API key not found")
       return NextResponse.json({ suggestions: [] })
     }
 
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     const response = await fetch(url, {
       headers: {
         "User-Agent": "AlienShipper/1.0",
-        Referer: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+        Referer: process.env.NEXT_PUBLIC_SITE_URL || "https://alienshipper.com",
       },
     })
 
@@ -32,22 +32,29 @@ export async function GET(request: NextRequest) {
         // Handle "Unable to geocode" errors gracefully
         return NextResponse.json({ suggestions: [] })
       }
+      if (response.status === 429) {
+        console.error("LocationIQ rate limit exceeded")
+        return NextResponse.json({
+          error: "Rate limit exceeded. Please try again later.",
+          suggestions: [],
+        })
+      }
       throw new Error(`LocationIQ API error: ${response.status}`)
     }
 
     const data = await response.json()
 
-    // Handle API error responses
-    if (data.error) {
-      console.warn("LocationIQ API error:", data.error)
+    // Handle case where API returns error object instead of array
+    if (!Array.isArray(data)) {
+      if (data.error) {
+        console.error("LocationIQ API error:", data.error)
+        return NextResponse.json({ suggestions: [] })
+      }
       return NextResponse.json({ suggestions: [] })
     }
 
-    // Ensure data is an array
-    const results = Array.isArray(data) ? data : []
-
-    const suggestions = results.map((item: any) => ({
-      place_id: item.place_id || item.osm_id || Math.random().toString(),
+    const suggestions = data.map((item: any) => ({
+      place_id: item.place_id,
       display_name: item.display_name,
       address: {
         house_number: item.address?.house_number || "",
@@ -62,6 +69,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ suggestions })
   } catch (error) {
     console.error("Address autocomplete error:", error)
-    return NextResponse.json({ suggestions: [] })
+    return NextResponse.json({
+      error: "Failed to fetch address suggestions",
+      suggestions: [],
+    })
   }
 }

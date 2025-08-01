@@ -6,12 +6,12 @@ interface AddressSuggestion {
   place_id: string
   display_name: string
   address: {
-    house_number?: string
-    road?: string
-    city?: string
-    state?: string
-    postcode?: string
-    country?: string
+    house_number: string
+    road: string
+    city: string
+    state: string
+    postcode: string
+    country: string
   }
 }
 
@@ -43,34 +43,40 @@ export function useAddressAutocomplete() {
 
     // Create new abort controller
     abortControllerRef.current = new AbortController()
-    lastQueryRef.current = query
 
     // Debounce the search
     timeoutRef.current = setTimeout(async () => {
       try {
         setIsLoading(true)
         setError(null)
+        lastQueryRef.current = query
 
         const response = await fetch(`/api/address-autocomplete?q=${encodeURIComponent(query)}`, {
           signal: abortControllerRef.current?.signal,
         })
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
+          throw new Error("Failed to fetch suggestions")
         }
 
         const data = await response.json()
-        setSuggestions(data.suggestions || [])
-      } catch (err: any) {
-        if (err.name !== "AbortError") {
-          console.error("Address search error:", err)
+
+        if (data.error) {
+          setError(data.error)
+          setSuggestions([])
+        } else {
+          setSuggestions(data.suggestions || [])
+        }
+      } catch (error: any) {
+        if (error.name !== "AbortError") {
+          console.error("Address search error:", error)
           setError("Failed to search addresses")
           setSuggestions([])
         }
       } finally {
         setIsLoading(false)
       }
-    }, 300)
+    }, 300) // 300ms debounce
   }, [])
 
   const clearSuggestions = useCallback(() => {
