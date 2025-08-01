@@ -163,8 +163,8 @@ export default function Billing() {
   // Placeholder balance (replace with real balance logic)
   const balance = 137.50
 
-  // Stripe publishable key (replace with your real key or use env var)
-  const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "pk_test_1234")
+  // Stripe publishable key (use correct env var from .env.local)
+  const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_API_KEY || "pk_test_51RareaReB4GFfJph1pd5UoEeeuTEAafXVPdR35IWXuz1DDO1wcxpA7TWuiVcHKOMlfUtuHO2x168ygDdTDnfeGkh00u51syNac")
 
   return (
     <div className="max-w-4xl mx-auto space-y-10">
