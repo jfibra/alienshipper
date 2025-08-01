@@ -1,10 +1,18 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { debounce } from "lodash"
 import type { LocationIQSuggestion } from "@/lib/types/address"
 
-const LOCATION_IQ_API_KEY = "pk.fd453d1d34b1ce7133796b811cbd3ee1"
+const LOCATION_IQ_API_KEY = process.env.NEXT_PUBLIC_LOCATION_IQ_API_KEY || "pk.fd453d1d34b1ce7133796b811cbd3ee1"
+
+// Debounce function
+function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T {
+  let timeout: NodeJS.Timeout
+  return ((...args: any[]) => {
+    clearTimeout(timeout)
+    timeout = setTimeout(() => func(...args), wait)
+  }) as T
+}
 
 export function useAddressAutocomplete() {
   const [suggestions, setSuggestions] = useState<LocationIQSuggestion[]>([])
