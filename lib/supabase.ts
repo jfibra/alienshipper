@@ -1,9 +1,11 @@
-import { createClient } from "@supabase/supabase-js"
+import { createClientComponentClient, createServerComponentClient } from "@supabase/auth-helpers-nextjs"
+import { cookies } from "next/headers"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// Client-side Supabase client (for components)
+export const createSupabaseClient = () => createClientComponentClient()
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Server-side Supabase client (for server components)
+export const createSupabaseServerClient = () => createServerComponentClient({ cookies })
 
 // Types
 export interface User {
@@ -42,6 +44,7 @@ export interface Shipment {
 
 // Helper functions
 export const getCurrentUser = async () => {
+  const supabase = createSupabaseServerClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -49,11 +52,19 @@ export const getCurrentUser = async () => {
 }
 
 export const signOut = async () => {
+  const supabase = createSupabaseClient()
   const { error } = await supabase.auth.signOut()
   if (error) throw error
+
+  // Clear any local storage items
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("user")
+    localStorage.removeItem("supabase.auth.token")
+  }
 }
 
 export const signInWithEmail = async (email: string, password: string) => {
+  const supabase = createSupabaseClient()
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
@@ -63,6 +74,7 @@ export const signInWithEmail = async (email: string, password: string) => {
 }
 
 export const signUpWithEmail = async (email: string, password: string, metadata?: any) => {
+  const supabase = createSupabaseClient()
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -75,6 +87,7 @@ export const signUpWithEmail = async (email: string, password: string, metadata?
 }
 
 export const sendMagicLink = async (email: string) => {
+  const supabase = createSupabaseClient()
   const { data, error } = await supabase.auth.signInWithOtp({
     email,
     options: {
@@ -86,6 +99,7 @@ export const sendMagicLink = async (email: string) => {
 }
 
 export const resetPassword = async (email: string) => {
+  const supabase = createSupabaseClient()
   const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${window.location.origin}/auth/reset-password`,
   })

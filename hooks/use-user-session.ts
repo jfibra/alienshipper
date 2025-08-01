@@ -1,26 +1,75 @@
+"use client"
+
 import { useEffect, useState } from "react"
-import { supabase } from "@/lib/supabase"
+import type { User } from "@supabase/supabase-js"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
 export function useUserSession() {
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const supabase = createClientComponentClient()
 
   useEffect(() => {
     let mounted = true
-    async function getUser() {
-      const { data, error } = await supabase.auth.getUser()
-      if (mounted) setUser(data?.user || null)
-      setLoading(false)
+
+    // Get initial session
+    const getInitialSession = async () => {
+      try {
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession()
+
+        if (error) {
+          console.error("Error getting session:", error)
+        }
+
+        if (mounted) {
+          setUser(session?.user ?? null)
+          setLoading(false)
+        }
+      } catch (error) {
+        console.error("Error in getInitialSession:", error)
+        if (mounted) {
+          setUser(null)
+          setLoading(false)
+        }
+      }
     }
-    getUser()
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null)
+
+    getInitialSession()
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth state changed:", event, session?.user?.email)
+
+      if (mounted) {
+        setUser(session?.user ?? null)
+        setLoading(false)
+      }
+
+      // Handle sign out
+      if (event === "SIGNED_OUT") {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("user")
+        }
+      }
+
+      // Handle sign in
+      if (event === "SIGNED_IN" && session?.user) {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("user", JSON.stringify(session.user))
+        }
+      }
     })
+
     return () => {
       mounted = false
-      listener?.subscription.unsubscribe()
+      subscription.unsubscribe()
     }
-  }, [])
+  }, [supabase.auth])
 
   return { user, loading }
 }
