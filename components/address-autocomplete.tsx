@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { MapPin, Loader2 } from "lucide-react"
+import { Loader2, MapPin } from "lucide-react"
 import { useAddressAutocomplete } from "@/hooks/use-address-autocomplete"
 import type { LocationIQSuggestion } from "@/lib/types/address"
 
@@ -23,15 +23,15 @@ export function AddressAutocomplete({
   onChange,
   onAddressSelect,
   countryCode,
-  placeholder = "Enter street address",
+  placeholder = "Start typing your address...",
   className,
 }: AddressAutocompleteProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [inputValue, setInputValue] = useState(value)
+  const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const { suggestions, isLoading, searchAddresses, clearSuggestions } = useAddressAutocomplete()
+  const { suggestions, isLoading, search, clearSuggestions } = useAddressAutocomplete(countryCode)
 
   useEffect(() => {
     setInputValue(value)
@@ -39,11 +39,7 @@ export function AddressAutocomplete({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node) &&
-        !inputRef.current?.contains(event.target as Node)
-      ) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false)
       }
     }
@@ -58,7 +54,7 @@ export function AddressAutocomplete({
     onChange(newValue)
 
     if (newValue.length >= 3) {
-      searchAddresses(newValue, countryCode)
+      search(newValue)
       setIsOpen(true)
     } else {
       clearSuggestions()
@@ -67,11 +63,9 @@ export function AddressAutocomplete({
   }
 
   const handleSuggestionClick = (suggestion: LocationIQSuggestion) => {
-    const address = suggestion.address
-    const streetAddress = [address.house_number, address.road].filter(Boolean).join(" ")
-
-    setInputValue(streetAddress || suggestion.display_name.split(",")[0])
-    onChange(streetAddress || suggestion.display_name.split(",")[0])
+    const addressText = suggestion.display_name.split(",")[0] // Get the first part (street address)
+    setInputValue(addressText)
+    onChange(addressText)
     onAddressSelect(suggestion)
     setIsOpen(false)
     clearSuggestions()
@@ -84,24 +78,19 @@ export function AddressAutocomplete({
   }
 
   return (
-    <div className="relative">
-      <div className="relative">
-        <Input
-          ref={inputRef}
-          value={inputValue}
-          onChange={handleInputChange}
-          onFocus={handleInputFocus}
-          placeholder={placeholder}
-          className={className}
-        />
-        <MapPin className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-      </div>
+    <div ref={containerRef} className="relative">
+      <Input
+        ref={inputRef}
+        value={inputValue}
+        onChange={handleInputChange}
+        onFocus={handleInputFocus}
+        placeholder={placeholder}
+        className={className}
+        autoComplete="off"
+      />
 
       {isOpen && (suggestions.length > 0 || isLoading) && (
-        <div
-          ref={dropdownRef}
-          className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto"
-        >
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
           {isLoading && (
             <div className="flex items-center justify-center p-3">
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -117,15 +106,9 @@ export function AddressAutocomplete({
                 className="w-full justify-start p-3 h-auto text-left hover:bg-gray-50"
                 onClick={() => handleSuggestionClick(suggestion)}
               >
-                <div className="flex items-start space-x-2">
-                  <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 truncate">
-                      {[suggestion.address.house_number, suggestion.address.road].filter(Boolean).join(" ") ||
-                        suggestion.display_name.split(",")[0]}
-                    </div>
-                    <div className="text-xs text-gray-500 truncate">{suggestion.display_name}</div>
-                  </div>
+                <MapPin className="h-4 w-4 mr-2 flex-shrink-0 text-gray-400" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-gray-900 truncate">{suggestion.display_name}</div>
                 </div>
               </Button>
             ))}

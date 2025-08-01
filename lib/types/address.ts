@@ -18,24 +18,33 @@ export interface BaseAddress {
   email: string
   phone?: string
   company?: string
-  street_address: string
-  street_address_2?: string
   city: string
   state: string
   postal_code: string
   country: string
-  address_type: "residential" | "warehouse" | "office" | "business" | "other"
+  country_code: string
+  address_type: "residential" | "commercial" | "warehouse" | "government" | "pickup_point" | "other"
+  is_default?: boolean
   created_at?: string
   updated_at?: string
 }
 
-export interface RecipientAddress extends BaseAddress {}
+export interface RecipientAddress extends BaseAddress {
+  phone_number?: string
+  street1: string
+  street2?: string
+}
 
 export interface ShippingAddress extends BaseAddress {
+  phone?: string
+  address_line1: string
+  address_line2?: string
   usage_type: "shipping" | "return" | "both"
 }
 
 export type AddressFormData = Omit<BaseAddress, "id" | "user_id" | "created_at" | "updated_at"> & {
+  street_address: string
+  street_address_2?: string
   usage_type?: "shipping" | "return" | "both"
 }
 

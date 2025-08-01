@@ -16,7 +16,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Edit, Trash2, MapPin, Mail, Phone, Building } from "lucide-react"
+import { Edit, Trash2, MapPin, Mail, Phone, Building, Star } from "lucide-react"
 import type { Country, RecipientAddress, ShippingAddress } from "@/lib/types/address"
 
 interface AddressListProps {
@@ -39,9 +39,10 @@ export function AddressList({ addresses, countries, type, onEdit, onDelete, isLo
   const getAddressTypeColor = (addressType: string) => {
     const colors = {
       residential: "bg-blue-100 text-blue-800",
-      warehouse: "bg-purple-100 text-purple-800",
-      office: "bg-green-100 text-green-800",
-      business: "bg-orange-100 text-orange-800",
+      commercial: "bg-purple-100 text-purple-800",
+      warehouse: "bg-green-100 text-green-800",
+      government: "bg-orange-100 text-orange-800",
+      pickup_point: "bg-pink-100 text-pink-800",
       other: "bg-gray-100 text-gray-800",
     }
     return colors[addressType as keyof typeof colors] || colors.other
@@ -65,6 +66,27 @@ export function AddressList({ addresses, countries, type, onEdit, onDelete, isLo
     } finally {
       setDeletingId(null)
     }
+  }
+
+  const getStreetAddress = (address: RecipientAddress | ShippingAddress) => {
+    if (type === "recipient") {
+      return (address as RecipientAddress).street1
+    }
+    return (address as ShippingAddress).address_line1
+  }
+
+  const getStreetAddress2 = (address: RecipientAddress | ShippingAddress) => {
+    if (type === "recipient") {
+      return (address as RecipientAddress).street2
+    }
+    return (address as ShippingAddress).address_line2
+  }
+
+  const getPhoneNumber = (address: RecipientAddress | ShippingAddress) => {
+    if (type === "recipient") {
+      return (address as RecipientAddress).phone_number
+    }
+    return (address as ShippingAddress).phone
   }
 
   if (isLoading) {
@@ -112,9 +134,16 @@ export function AddressList({ addresses, countries, type, onEdit, onDelete, isLo
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <CardTitle className="text-lg font-semibold">{address.full_name}</CardTitle>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge className={getAddressTypeColor(address.address_type)}>{address.address_type}</Badge>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-lg font-semibold">{address.full_name}</CardTitle>
+                  {address.is_default && (
+                    <Star className="h-4 w-4 text-yellow-500 fill-current" title="Default address" />
+                  )}
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <Badge className={getAddressTypeColor(address.address_type)}>
+                    {address.address_type.replace("_", " ")}
+                  </Badge>
                   {type === "shipping" && "usage_type" in address && (
                     <Badge className={getUsageTypeColor(address.usage_type)}>{address.usage_type}</Badge>
                   )}
@@ -125,15 +154,15 @@ export function AddressList({ addresses, countries, type, onEdit, onDelete, isLo
 
           <CardContent className="space-y-3">
             <div className="space-y-2 text-sm">
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0" />
+              <div className="flex items-start gap-2">
+                <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <div>{address.street_address}</div>
-                  {address.street_address_2 && <div>{address.street_address_2}</div>}
+                  <div>{getStreetAddress(address)}</div>
+                  {getStreetAddress2(address) && <div>{getStreetAddress2(address)}</div>}
                   <div>
                     {address.city}, {address.state} {address.postal_code}
                   </div>
-                  <div>{getCountryName(address.country)}</div>
+                  <div>{getCountryName(address.country_code)}</div>
                 </div>
               </div>
 
@@ -142,10 +171,10 @@ export function AddressList({ addresses, countries, type, onEdit, onDelete, isLo
                 <span className="truncate">{address.email}</span>
               </div>
 
-              {address.phone && (
+              {getPhoneNumber(address) && (
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                  <span>{address.phone}</span>
+                  <span>{getPhoneNumber(address)}</span>
                 </div>
               )}
 

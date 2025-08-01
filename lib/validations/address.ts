@@ -11,7 +11,9 @@ const baseAddressSchema = z.object({
   state: z.string().min(1, "State is required"),
   postal_code: z.string().min(1, "Postal code is required"),
   country: z.string().min(1, "Country is required"),
-  address_type: z.enum(["residential", "warehouse", "office", "business", "other"]),
+  country_code: z.string().min(2, "Country code is required"),
+  address_type: z.enum(["residential", "commercial", "warehouse", "government", "pickup_point", "other"]),
+  is_default: z.boolean().optional(),
 })
 
 export const recipientAddressSchema = baseAddressSchema

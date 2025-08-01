@@ -113,23 +113,36 @@ export default function AddressBook() {
     if (!user) return
 
     try {
-      const addressData = {
-        ...data,
-        user_id: user.id,
-        updated_at: new Date().toISOString(),
-      }
-
       if (activeTab === "recipient") {
+        // Map form data to database schema for recipient addresses
+        const recipientData = {
+          user_id: user.id,
+          full_name: data.full_name,
+          email: data.email,
+          phone_number: data.phone || null,
+          company: data.company || null,
+          street1: data.street_address,
+          street2: data.street_address_2 || null,
+          city: data.city,
+          state: data.state,
+          postal_code: data.postal_code,
+          country: data.country,
+          country_code: data.country_code,
+          address_type: data.address_type,
+          is_default: data.is_default || false,
+          updated_at: new Date().toISOString(),
+        }
+
         if (editingAddress) {
           // Update existing recipient address
-          const { error } = await supabase.from("recipient_addresses").update(addressData).eq("id", editingAddress.id)
+          const { error } = await supabase.from("recipient_addresses").update(recipientData).eq("id", editingAddress.id)
 
           if (error) throw error
           toast.success("Recipient address updated successfully")
         } else {
           // Create new recipient address
           const { error } = await supabase.from("recipient_addresses").insert({
-            ...addressData,
+            ...recipientData,
             created_at: new Date().toISOString(),
           })
 
@@ -137,16 +150,36 @@ export default function AddressBook() {
           toast.success("Recipient address added successfully")
         }
       } else {
+        // Map form data to database schema for shipping addresses
+        const shippingData = {
+          user_id: user.id,
+          full_name: data.full_name,
+          email: data.email,
+          phone: data.phone || null,
+          company: data.company || null,
+          address_line1: data.street_address,
+          address_line2: data.street_address_2 || null,
+          city: data.city,
+          state: data.state,
+          postal_code: data.postal_code,
+          country: data.country,
+          country_code: data.country_code,
+          address_type: data.address_type,
+          usage_type: (data as ShippingAddressFormData).usage_type,
+          is_default: data.is_default || false,
+          updated_at: new Date().toISOString(),
+        }
+
         if (editingAddress) {
           // Update existing shipping address
-          const { error } = await supabase.from("shipping_addresses").update(addressData).eq("id", editingAddress.id)
+          const { error } = await supabase.from("shipping_addresses").update(shippingData).eq("id", editingAddress.id)
 
           if (error) throw error
           toast.success("Shipping address updated successfully")
         } else {
           // Create new shipping address
           const { error } = await supabase.from("shipping_addresses").insert({
-            ...addressData,
+            ...shippingData,
             created_at: new Date().toISOString(),
           })
 

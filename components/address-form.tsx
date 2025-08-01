@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Checkbox } from "@/components/ui/checkbox"
 import { AddressAutocomplete } from "@/components/address-autocomplete"
 import {
   recipientAddressSchema,
@@ -60,17 +61,21 @@ export function AddressForm({
       city: "",
       state: "",
       postal_code: "",
-      country: "US", // Default to US
+      country: "United States",
+      country_code: "US",
       address_type: "residential",
+      is_default: false,
       ...(type === "shipping" && { usage_type: "shipping" }),
     },
   })
 
   const selectedCountry = watch("country")
+  const selectedCountryCode = watch("country_code")
   const selectedAddressType = watch("address_type")
   const selectedUsageType =
     type === "shipping" ? watch("usage_type" as keyof (RecipientAddressFormData | ShippingAddressFormData)) : undefined
   const streetAddress = watch("street_address")
+  const isDefault = watch("is_default")
 
   // Auto-fill user data for shipping addresses
   useEffect(() => {
@@ -84,8 +89,32 @@ export function AddressForm({
 
   useEffect(() => {
     if (editingAddress) {
-      Object.entries(editingAddress).forEach(([key, value]) => {
-        if (key !== "id" && key !== "user_id" && key !== "created_at" && key !== "updated_at") {
+      // Map database fields to form fields
+      const mappedAddress = {
+        full_name: editingAddress.full_name,
+        email: editingAddress.email,
+        phone: type === "recipient" ? (editingAddress as RecipientAddress).phone_number : editingAddress.phone,
+        company: editingAddress.company,
+        street_address:
+          type === "recipient"
+            ? (editingAddress as RecipientAddress).street1
+            : (editingAddress as ShippingAddress).address_line1,
+        street_address_2:
+          type === "recipient"
+            ? (editingAddress as RecipientAddress).street2
+            : (editingAddress as ShippingAddress).address_line2,
+        city: editingAddress.city,
+        state: editingAddress.state,
+        postal_code: editingAddress.postal_code,
+        country: editingAddress.country,
+        country_code: editingAddress.country_code,
+        address_type: editingAddress.address_type,
+        is_default: editingAddress.is_default,
+        ...(type === "shipping" && { usage_type: (editingAddress as ShippingAddress).usage_type }),
+      }
+
+      Object.entries(mappedAddress).forEach(([key, value]) => {
+        if (value !== undefined) {
           setValue(key as keyof (RecipientAddressFormData | ShippingAddressFormData), value)
         }
       })
@@ -100,13 +129,23 @@ export function AddressForm({
         city: "",
         state: "",
         postal_code: "",
-        country: "US", // Default to US
+        country: "United States",
+        country_code: "US",
         address_type: "residential",
+        is_default: false,
         ...(type === "shipping" && { usage_type: "shipping" }),
       }
       reset(defaultValues)
     }
   }, [editingAddress, reset, setValue, type, userProfile])
+
+  const handleCountryChange = (countryCode: string) => {
+    const country = countries.find((c) => c.code === countryCode)
+    if (country) {
+      setValue("country_code", countryCode)
+      setValue("country", country.name)
+    }
+  }
 
   const handleAddressSelect = (suggestion: LocationIQSuggestion) => {
     const address = suggestion.address
@@ -115,9 +154,11 @@ export function AddressForm({
     if (address.state) setValue("state", address.state)
     if (address.postcode) setValue("postal_code", address.postcode)
     if (address.country_code) {
-      // Find the country by code and set it
       const country = countries.find((c) => c.code.toLowerCase() === address.country_code?.toLowerCase())
-      if (country) setValue("country", country.code)
+      if (country) {
+        setValue("country_code", country.code)
+        setValue("country", country.name)
+      }
     }
   }
 
@@ -181,7 +222,7 @@ export function AddressForm({
               value={streetAddress}
               onChange={(value) => setValue("street_address", value)}
               onAddressSelect={handleAddressSelect}
-              countryCode={selectedCountry}
+              countryCode={selectedCountryCode}
               placeholder="Start typing your address..."
             />
             {errors.street_address && <p className="text-sm text-red-600">{errors.street_address.message}</p>}
@@ -216,7 +257,7 @@ export function AddressForm({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Country *</Label>
-              <Select value={selectedCountry} onValueChange={(value) => setValue("country", value)}>
+              <Select value={selectedCountryCode} onValueChange={handleCountryChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a country" />
                 </SelectTrigger>
@@ -239,9 +280,10 @@ export function AddressForm({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="residential">Residential</SelectItem>
+                  <SelectItem value="commercial">Commercial</SelectItem>
                   <SelectItem value="warehouse">Warehouse</SelectItem>
-                  <SelectItem value="office">Office</SelectItem>
-                  <SelectItem value="business">Business</SelectItem>
+                  <SelectItem value="government">Government</SelectItem>
+                  <SelectItem value="pickup_point">Pickup Point</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
@@ -270,6 +312,20 @@ export function AddressForm({
               {errors.usage_type && <p className="text-sm text-red-600">{(errors as any).usage_type.message}</p>}
             </div>
           )}
+
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="is_default"
+              checked={isDefault}
+              onCheckedChange={(checked) => setValue("is_default", checked as boolean)}
+            />
+            <Label
+              htmlFor="is_default"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              Set as default address
+            </Label>
+          </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleClose}>
