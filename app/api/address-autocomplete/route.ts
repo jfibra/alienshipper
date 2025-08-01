@@ -1,68 +1,31 @@
 import { type NextRequest, NextResponse } from "next/server"
 
 export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url)
+  const query = searchParams.get("q")
+
+  if (!query) {
+    return NextResponse.json({ error: "Query parameter is required" }, { status: 400 })
+  }
+
   try {
-    const { searchParams } = new URL(request.url)
-    const query = searchParams.get("q")
-    const countryCode = searchParams.get("countrycodes") || "US"
-
-    if (!query || query.length < 3) {
-      return NextResponse.json({ error: "Query must be at least 3 characters" }, { status: 400 })
-    }
-
-    const apiKey = process.env.LOCATION_IQ_API_KEY
-    if (!apiKey) {
-      console.error("LocationIQ API key missing. Make sure LOCATION_IQ_API_KEY is set in your environment variables.")
-      return NextResponse.json({ error: "LocationIQ API key not configured" }, { status: 500 })
-    }
-
-    const url = `https://api.locationiq.com/v1/autocomplete.php?key=${apiKey}&q=${encodeURIComponent(
-      query,
-    )}&format=json&limit=5&countrycodes=${countryCode.toLowerCase()}&addressdetails=1`
-
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "AlienShipper/1.0",
+    const response = await fetch(
+      `https://api.locationiq.com/v1/autocomplete?key=${process.env.LOCATION_IQ_API_KEY}&q=${encodeURIComponent(query)}&limit=5&format=json`,
+      {
+        headers: {
+          Accept: "application/json",
+        },
       },
-    })
+    )
 
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error(`LocationIQ API Error ${response.status}:`, errorText)
-
-      if (response.status === 401) {
-        return NextResponse.json({ error: "Invalid API key" }, { status: 401 })
-      }
-
-      return NextResponse.json({ error: `API request failed: ${response.status}` }, { status: response.status })
+      throw new Error(`LocationIQ API error: ${response.status}`)
     }
 
     const data = await response.json()
-
-    // Transform the response to match our expected format
-    const transformedSuggestions = Array.isArray(data)
-      ? data.map((item: any) => ({
-          place_id: item.place_id,
-          display_name: item.display_name,
-          lat: item.lat,
-          lon: item.lon,
-          address: {
-            house_number: item.address?.house_number || "",
-            road: item.address?.road || "",
-            city: item.address?.city || item.address?.town || item.address?.village || "",
-            state: item.address?.state || "",
-            postcode: item.address?.postcode || "",
-            country: item.address?.country || "",
-            country_code: item.address?.country_code?.toUpperCase() || countryCode.toUpperCase(),
-          },
-        }))
-      : []
-
-    return NextResponse.json(transformedSuggestions)
+    return NextResponse.json(data)
   } catch (error) {
-    console.error("Address search error:", error)
-    return NextResponse.json({ error: "Failed to search addresses" }, { status: 500 })
+    console.error("Address autocomplete error:", error)
+    return NextResponse.json({ error: "Failed to fetch address suggestions" }, { status: 500 })
   }
 }
