@@ -19,6 +19,25 @@ export default function HomePage() {
     const access_token = searchParams.get("access_token")
     const refresh_token = searchParams.get("refresh_token")
 
+    // Check for errors in URL hash (Supabase sometimes puts errors there)
+    const hash = window.location.hash
+    if (hash) {
+      const hashParams = new URLSearchParams(hash.substring(1))
+      const hashError = hashParams.get("error")
+      const errorCode = hashParams.get("error_code")
+      const errorDescription = hashParams.get("error_description")
+
+      if (hashError) {
+        if (errorCode === "otp_expired" || hashError === "access_denied") {
+          // Redirect to forgot password page with error message
+          router.replace(
+            `/forgot-password?error=expired&message=${encodeURIComponent("Password reset link has expired. Please request a new one.")}`,
+          )
+          return
+        }
+      }
+    }
+
     // Handle password reset callback
     if (token && type === "recovery") {
       router.replace(`/auth/reset-password?access_token=${token}&type=${type}`)
@@ -31,7 +50,14 @@ export default function HomePage() {
       return
     }
 
+    // Handle URL parameter errors
     if (error) {
+      if (error === "access_denied") {
+        router.replace(
+          `/forgot-password?error=expired&message=${encodeURIComponent("Password reset link has expired. Please request a new one.")}`,
+        )
+        return
+      }
       console.error("Auth error:", error)
     }
   }, [router, searchParams])
