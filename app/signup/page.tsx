@@ -1,3 +1,5 @@
+"use client"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -7,6 +9,87 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Rocket, CheckCircle, Zap, Shield, Globe } from "lucide-react"
 
 export default function SignupPage() {
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    company: "",
+    phone: "",
+    businessType: "",
+    monthlyVolume: "",
+    agreedTerms: false,
+    newsletter: false,
+  })
+  const [submitting, setSubmitting] = useState(false)
+  const [success, setSuccess] = useState("")
+  const [error, setError] = useState("")
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value, type, checked } = e.target
+    setForm((prev) => ({
+      ...prev,
+      [id]: type === "checkbox" ? checked : value,
+    }))
+  }
+  const handleBusinessType = (value: string) => setForm((prev) => ({ ...prev, businessType: value }))
+  const handleMonthlyVolume = (value: string) => setForm((prev) => ({ ...prev, monthlyVolume: value }))
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+    setSuccess("")
+    if (!form.firstName || !form.lastName || !form.email || !form.password || !form.agreedTerms) {
+      setError("Please fill in all required fields and agree to the Terms.")
+      return
+    }
+    setSubmitting(true)
+    try {
+      // 1. Create user in Supabase Auth
+      const res = await fetch("/api/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password,
+          firstName: form.firstName,
+          lastName: form.lastName,
+          company: form.company,
+          phone: form.phone,
+          businessType: form.businessType,
+          monthlyVolume: form.monthlyVolume,
+          agreedTerms: form.agreedTerms,
+          newsletter: form.newsletter,
+        }),
+      })
+      let data = null
+      try {
+        data = await res.json()
+      } catch (jsonErr) {
+        setError("Unexpected server response. Please try again later.")
+        setSubmitting(false)
+        return
+      }
+      if (!res.ok) throw new Error(data?.error || "Signup failed")
+      setSuccess("Account created! Please check your email to verify your account and sign in.")
+      setForm({
+        firstName: "",
+        lastName: "",
+        email: "",
+        password: "",
+        company: "",
+        phone: "",
+        businessType: "",
+        monthlyVolume: "",
+        agreedTerms: false,
+        newsletter: false,
+      })
+    } catch (err: any) {
+      setError(err.message || "Signup failed")
+    } finally {
+      setSubmitting(false)
+    }
+  }
   const benefits = [
     {
       icon: CheckCircle,
@@ -99,97 +182,106 @@ export default function SignupPage() {
               <p className="text-gray-600">Join thousands of businesses saving on shipping costs</p>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="firstName">First Name</Label>
-                  <Input id="firstName" placeholder="John" />
+              {success && <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-700 text-center">{success}</div>}
+              {error && <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-center">{error}</div>}
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="firstName">First Name</Label>
+                    <Input id="firstName" placeholder="John" value={form.firstName} onChange={handleChange} />
+                  </div>
+                  <div>
+                    <Label htmlFor="lastName">Last Name</Label>
+                    <Input id="lastName" placeholder="Doe" value={form.lastName} onChange={handleChange} />
+                  </div>
                 </div>
+
                 <div>
-                  <Label htmlFor="lastName">Last Name</Label>
-                  <Input id="lastName" placeholder="Doe" />
+                  <Label htmlFor="email">Email Address</Label>
+                  <Input id="email" type="email" placeholder="john@company.com" value={form.email} onChange={handleChange} />
                 </div>
-              </div>
 
-              <div>
-                <Label htmlFor="email">Email Address</Label>
-                <Input id="email" type="email" placeholder="john@company.com" />
-              </div>
+                <div>
+                  <Label htmlFor="password">Password</Label>
+                  <Input id="password" type="password" placeholder="••••••••" value={form.password} onChange={handleChange} />
+                </div>
 
-              <div>
-                <Label htmlFor="company">Company Name</Label>
-                <Input id="company" placeholder="Acme Corp" />
-              </div>
+                <div>
+                  <Label htmlFor="company">Company Name</Label>
+                  <Input id="company" placeholder="Acme Corp" value={form.company} onChange={handleChange} />
+                </div>
 
-              <div>
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input id="phone" type="tel" placeholder="+1 (555) 123-4567" />
-              </div>
+                <div>
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <Input id="phone" type="tel" placeholder="+1 (555) 123-4567" value={form.phone} onChange={handleChange} />
+                </div>
 
-              <div>
-                <Label htmlFor="businessType">Business Type</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your business type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ecommerce">E-commerce</SelectItem>
-                    <SelectItem value="retail">Retail</SelectItem>
-                    <SelectItem value="manufacturing">Manufacturing</SelectItem>
-                    <SelectItem value="wholesale">Wholesale</SelectItem>
-                    <SelectItem value="services">Services</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                <div>
+                  <Label htmlFor="businessType">Business Type</Label>
+                  <Select value={form.businessType} onValueChange={handleBusinessType}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select your business type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ecommerce">E-commerce</SelectItem>
+                      <SelectItem value="retail">Retail</SelectItem>
+                      <SelectItem value="manufacturing">Manufacturing</SelectItem>
+                      <SelectItem value="wholesale">Wholesale</SelectItem>
+                      <SelectItem value="services">Services</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div>
-                <Label htmlFor="monthlyVolume">Monthly Shipping Volume</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your monthly volume" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1-50">1-50 packages</SelectItem>
-                    <SelectItem value="51-200">51-200 packages</SelectItem>
-                    <SelectItem value="201-500">201-500 packages</SelectItem>
-                    <SelectItem value="501-1000">501-1000 packages</SelectItem>
-                    <SelectItem value="1000+">1000+ packages</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                <div>
+                  <Label htmlFor="monthlyVolume">Monthly Shipping Volume</Label>
+                  <Select value={form.monthlyVolume} onValueChange={handleMonthlyVolume}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select your monthly volume" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1-50">1-50 packages</SelectItem>
+                      <SelectItem value="51-200">51-200 packages</SelectItem>
+                      <SelectItem value="201-500">201-500 packages</SelectItem>
+                      <SelectItem value="501-1000">501-1000 packages</SelectItem>
+                      <SelectItem value="1000+">1000+ packages</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div className="flex items-center space-x-2">
-                <Checkbox id="terms" />
-                <Label htmlFor="terms" className="text-sm text-gray-600">
-                  I agree to the{" "}
-                  <a href="#" className="text-purple-600 hover:underline">
-                    Terms of Service
-                  </a>{" "}
-                  and{" "}
-                  <a href="#" className="text-purple-600 hover:underline">
-                    Privacy Policy
+                <div className="flex items-center space-x-2">
+                  <Checkbox id="agreedTerms" checked={form.agreedTerms} onCheckedChange={(checked) => setForm((prev) => ({ ...prev, agreedTerms: !!checked }))} />
+                  <Label htmlFor="agreedTerms" className="text-sm text-gray-600">
+                    I agree to the{" "}
+                    <a href="#" className="text-purple-600 hover:underline">
+                      Terms of Service
+                    </a>{" "}
+                    and{" "}
+                    <a href="#" className="text-purple-600 hover:underline">
+                      Privacy Policy
+                    </a>
+                  </Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox id="newsletter" checked={form.newsletter} onCheckedChange={(checked) => setForm((prev) => ({ ...prev, newsletter: !!checked }))} />
+                  <Label htmlFor="newsletter" className="text-sm text-gray-600">
+                    Send me shipping tips and product updates via intergalactic communication
+                  </Label>
+                </div>
+
+                <Button type="submit" disabled={submitting} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-lg py-6">
+                  Launch My Account
+                  <Rocket className="w-5 h-5 ml-2" />
+                </Button>
+
+                <div className="text-center text-sm text-gray-600">
+                  Already have an account?{" "}
+                  <a href="/login" className="text-purple-600 hover:underline font-semibold">
+                    Sign in here
                   </a>
-                </Label>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Checkbox id="newsletter" />
-                <Label htmlFor="newsletter" className="text-sm text-gray-600">
-                  Send me shipping tips and product updates via intergalactic communication
-                </Label>
-              </div>
-
-              <Button className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-lg py-6">
-                Launch My Account
-                <Rocket className="w-5 h-5 ml-2" />
-              </Button>
-
-              <div className="text-center text-sm text-gray-600">
-                Already have an account?{" "}
-                <a href="#" className="text-purple-600 hover:underline font-semibold">
-                  Sign in here
-                </a>
-              </div>
+                </div>
+              </form>
             </CardContent>
           </Card>
         </div>
