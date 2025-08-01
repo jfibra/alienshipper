@@ -1,22 +1,27 @@
 "use client"
 
+import type React from "react"
+
 import { useEffect, useState } from "react"
 import { loadStripe } from "@stripe/stripe-js"
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useUser } from "@/hooks/use-user"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   CreditCard,
   Plus,
   Trash2,
   CheckCircle,
   AlertCircle,
-  Banknote,
   DollarSign,
   Calendar,
   Loader2,
+  TrendingUp,
+  Receipt,
+  Wallet,
 } from "lucide-react"
 
 type PaymentMethod = {
@@ -33,9 +38,32 @@ type PaymentMethod = {
 
 // Sample transactions (replace with real data if available)
 const sampleTransactions = [
-  { id: 1, type: "Cash In", amount: 100, date: "2025-07-30", status: "Completed" },
-  { id: 2, type: "Shipment", amount: -12.5, date: "2025-07-31", status: "Completed" },
-  { id: 3, type: "Cash In", amount: 50, date: "2025-08-01", status: "Pending" },
+  { id: 1, type: "Cash In", amount: 100, date: "2025-07-30", status: "Completed", description: "Account deposit" },
+  {
+    id: 2,
+    type: "Shipment",
+    amount: -12.5,
+    date: "2025-07-31",
+    status: "Completed",
+    description: "Package to Mars Colony",
+  },
+  { id: 3, type: "Cash In", amount: 50, date: "2025-08-01", status: "Pending", description: "Account deposit" },
+  {
+    id: 4,
+    type: "Shipment",
+    amount: -8.75,
+    date: "2025-08-01",
+    status: "Completed",
+    description: "Express delivery to Jupiter",
+  },
+  {
+    id: 5,
+    type: "Refund",
+    amount: 15.25,
+    date: "2025-08-02",
+    status: "Completed",
+    description: "Cancelled shipment refund",
+  },
 ]
 
 export default function Billing() {
@@ -44,10 +72,15 @@ export default function Billing() {
   const [methods, setMethods] = useState<PaymentMethod[]>([])
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
-  // Stripe Elements does not need manual card fields
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
   const [deleting, setDeleting] = useState<string | null>(null)
+
+  // Calculate statistics
+  const currentBalance = 137.5
+  const totalDeposited = sampleTransactions.filter((t) => t.amount > 0).reduce((sum, t) => sum + t.amount, 0)
+  const totalSpent = Math.abs(sampleTransactions.filter((t) => t.amount < 0).reduce((sum, t) => sum + t.amount, 0))
+  const totalTransactions = sampleTransactions.length
 
   // Fetch payment methods
   useEffect(() => {
@@ -121,27 +154,52 @@ export default function Billing() {
     }
 
     return (
-      <form onSubmit={handleAdd} className="mb-8 grid grid-cols-1 gap-4 bg-slate-800/80 p-6 rounded-xl border border-blue-500/20">
-        <div className="col-span-1">
-          <CardElement options={{ style: { base: { color: '#fff', fontFamily: 'monospace', fontSize: '16px', '::placeholder': { color: '#a0aec0' } }, invalid: { color: '#fa755a' } } }} className="bg-slate-700/50 border-slate-600/50 rounded px-3 py-2" />
-        </div>
-        <div className="col-span-1 flex gap-4 mt-2">
-          <Button type="submit" className="bg-gradient-to-r from-blue-500 to-green-500 text-white font-semibold px-6 py-2 rounded-xl shadow hover:from-blue-600 hover:to-green-600" disabled={loading}>{loading ? <Loader2 className="animate-spin w-4 h-4" /> : "Save"}</Button>
-          <Button type="button" variant="secondary" onClick={onAdded} className="px-6 py-2">Cancel</Button>
-        </div>
-        {success && (
-          <div className="mb-2 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-400/20 rounded-xl p-3 flex items-center">
-            <CheckCircle className="w-5 h-5 text-green-400 mr-3" />
-            <span className="text-green-200 font-medium">{success}</span>
-          </div>
-        )}
-        {error && (
-          <div className="mb-2 bg-gradient-to-r from-red-500/10 to-pink-500/10 border border-red-400/20 rounded-xl p-3 flex items-center">
-            <AlertCircle className="w-5 h-5 text-red-400 mr-3" />
-            <span className="text-red-200 font-medium">{error}</span>
-          </div>
-        )}
-      </form>
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Add New Payment Method</CardTitle>
+          <CardDescription>Add a credit or debit card to your account</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleAdd} className="space-y-4">
+            <div className="p-3 border rounded-lg bg-gray-50">
+              <CardElement
+                options={{
+                  style: {
+                    base: {
+                      fontSize: "16px",
+                      color: "#424770",
+                      "::placeholder": {
+                        color: "#aab7c4",
+                      },
+                    },
+                  },
+                }}
+              />
+            </div>
+            <div className="flex gap-3">
+              <Button type="submit" disabled={loading}>
+                {loading ? <Loader2 className="animate-spin w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+                Add Payment Method
+              </Button>
+              <Button type="button" variant="outline" onClick={onAdded}>
+                Cancel
+              </Button>
+            </div>
+            {success && (
+              <div className="flex items-center p-3 bg-green-50 border border-green-200 rounded-lg">
+                <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+                <span className="text-green-800">{success}</span>
+              </div>
+            )}
+            {error && (
+              <div className="flex items-center p-3 bg-red-50 border border-red-200 rounded-lg">
+                <AlertCircle className="w-5 h-5 text-red-600 mr-2" />
+                <span className="text-red-800">{error}</span>
+              </div>
+            )}
+          </form>
+        </CardContent>
+      </Card>
     )
   }
 
@@ -160,144 +218,330 @@ export default function Billing() {
     setDeleting(null)
   }
 
-  // Placeholder balance (replace with real balance logic)
-  const balance = 137.50
-
-  // Stripe publishable key (use correct env var from .env.local)
-  const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_API_KEY || "pk_test_51RareaReB4GFfJph1pd5UoEeeuTEAafXVPdR35IWXuz1DDO1wcxpA7TWuiVcHKOMlfUtuHO2x168ygDdTDnfeGkh00u51syNac")
+  // Stripe publishable key
+  const stripePromise = loadStripe(
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_API_KEY ||
+      "pk_test_51RareaReB4GFfJph1pd5UoEeeuTEAafXVPdR35IWXuz1DDO1wcxpA7TWuiVcHKOMlfUtuHO2x168ygDdTDnfeGkh00u51syNac",
+  )
 
   return (
-    <div className="max-w-4xl mx-auto space-y-10">
-      {/* Balance Card */}
-      <div className="relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-green-500/20 to-blue-500/20 rounded-2xl blur-xl"></div>
-        <div className="relative bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-green-500/20 p-8 flex items-center justify-between">
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-white mb-2 flex items-center">
-              <Banknote className="w-7 h-7 mr-3 text-green-400" />
-              Alien Shipping Balance
-            </h2>
-            <p className="text-green-200 text-3xl font-mono font-bold">${balance.toFixed(2)}</p>
+            <h1 className="text-3xl font-bold text-gray-900">Billing & Payments</h1>
+            <p className="text-gray-600 mt-1">Manage your account balance, payment methods, and billing information</p>
           </div>
-          <Button className="bg-gradient-to-r from-green-500 to-blue-500 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:from-green-600 hover:to-blue-600">
-            Cash In
+          <Button className="bg-blue-600 hover:bg-blue-700">
+            <Plus className="w-4 h-4 mr-2" />
+            Add Funds
           </Button>
         </div>
-      </div>
 
-      {/* Transactions Table */}
-      <div className="relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-2xl blur-xl"></div>
-        <div className="relative bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-purple-500/20 p-8">
-          <h3 className="text-xl font-bold text-white mb-6 flex items-center">
-            <DollarSign className="w-5 h-5 mr-3 text-green-400" />
-            Recent Transactions
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left border">
-              <thead>
-                <tr className="bg-purple-900/30">
-                  <th className="px-4 py-2 font-semibold text-purple-200">Type</th>
-                  <th className="px-4 py-2 font-semibold text-purple-200">Amount</th>
-                  <th className="px-4 py-2 font-semibold text-purple-200">Date</th>
-                  <th className="px-4 py-2 font-semibold text-purple-200">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sampleTransactions.map((tx) => (
-                  <tr key={tx.id} className="border-t border-purple-900/20">
-                    <td className="px-4 py-2">{tx.type}</td>
-                    <td className="px-4 py-2">{tx.amount > 0 ? "+" : ""}${tx.amount.toFixed(2)}</td>
-                    <td className="px-4 py-2">{tx.date}</td>
-                    <td className="px-4 py-2">
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${tx.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{tx.status}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="bg-white shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Current Balance</p>
+                  <p className="text-3xl font-bold text-green-600">${currentBalance.toFixed(2)}</p>
+                  <p className="text-xs text-gray-500 mt-1">Available for shipping</p>
+                </div>
+                <div className="p-3 bg-green-100 rounded-full">
+                  <Wallet className="w-6 h-6 text-green-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Deposited</p>
+                  <p className="text-3xl font-bold text-blue-600">${totalDeposited.toFixed(2)}</p>
+                  <p className="text-xs text-gray-500 mt-1">Lifetime deposits</p>
+                </div>
+                <div className="p-3 bg-blue-100 rounded-full">
+                  <TrendingUp className="w-6 h-6 text-blue-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Spent</p>
+                  <p className="text-3xl font-bold text-purple-600">${totalSpent.toFixed(2)}</p>
+                  <p className="text-xs text-gray-500 mt-1">On shipping labels</p>
+                </div>
+                <div className="p-3 bg-purple-100 rounded-full">
+                  <DollarSign className="w-6 h-6 text-purple-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Transactions</p>
+                  <p className="text-3xl font-bold text-orange-600">{totalTransactions}</p>
+                  <p className="text-xs text-gray-500 mt-1">Total transactions</p>
+                </div>
+                <div className="p-3 bg-orange-100 rounded-full">
+                  <Receipt className="w-6 h-6 text-orange-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-      </div>
 
-      {/* Payment Methods */}
-      <div className="relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-green-500/10 rounded-2xl blur-xl"></div>
-        <Elements stripe={stripePromise}>
-          <div className="relative bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-blue-500/20 p-8">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-white flex items-center">
-                <CreditCard className="w-5 h-5 mr-3 text-blue-400" />
-                Payment Methods
-              </h3>
-              <Button onClick={() => setAdding((v) => !v)} className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-green-500 text-white font-semibold px-5 py-2 rounded-xl shadow hover:from-blue-600 hover:to-green-600">
-                <Plus className="w-4 h-4" /> Add Method
-              </Button>
+        {/* Tabs */}
+        <Card className="bg-white shadow-sm">
+          <Tabs defaultValue="overview" className="w-full">
+            <div className="border-b border-gray-200 px-6 pt-6">
+              <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:grid-cols-none lg:flex">
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="transactions">Transactions</TabsTrigger>
+                <TabsTrigger value="payment-methods">Payment Methods</TabsTrigger>
+              </TabsList>
             </div>
-            {adding && (
-              <AddPaymentMethodForm onAdded={async () => {
-                setAdding(false)
-                // Refetch payment methods after add/cancel
-                const { data } = await supabase.from("payment_methods").select("*").eq("user_id", user?.id).order("created_at", { ascending: false })
-                setMethods(data || [])
-              }} />
-            )}
-            {success && (
-              <div className="mb-4 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-400/20 rounded-xl p-4 flex items-center">
-                <CheckCircle className="w-5 h-5 text-green-400 mr-3" />
-                <span className="text-green-200 font-medium">{success}</span>
-              </div>
-            )}
-            {error && (
-              <div className="mb-4 bg-gradient-to-r from-red-500/10 to-pink-500/10 border border-red-400/20 rounded-xl p-4 flex items-center">
-                <AlertCircle className="w-5 h-5 text-red-400 mr-3" />
-                <span className="text-red-200 font-medium">{error}</span>
-              </div>
-            )}
-            {loading ? (
-              <div className="flex items-center gap-2 text-blue-200"><Loader2 className="animate-spin w-5 h-5" /> Loading payment methods...</div>
-            ) : methods.length === 0 ? (
-              <div className="text-blue-200">No payment methods added yet.</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-left border">
-                  <thead>
-                    <tr className="bg-blue-900/30">
-                      <th className="px-4 py-2 font-semibold text-blue-200">Brand</th>
-                      <th className="px-4 py-2 font-semibold text-blue-200">Last 4</th>
-                      <th className="px-4 py-2 font-semibold text-blue-200">Exp</th>
-                      <th className="px-4 py-2 font-semibold text-blue-200">Provider</th>
-                      <th className="px-4 py-2 font-semibold text-blue-200">Added</th>
-                      <th className="px-4 py-2 font-semibold text-blue-200">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {methods.map((m) => (
-                      <tr key={m.id} className="border-t border-blue-900/20">
-                        <td className="px-4 py-2">{m.brand}</td>
-                        <td className="px-4 py-2">{m.last4}</td>
-                        <td className="px-4 py-2">{m.exp_month}/{m.exp_year}</td>
-                        <td className="px-4 py-2 capitalize">{m.provider}</td>
-                        <td className="px-4 py-2 text-xs text-blue-200">{m.created_at ? new Date(m.created_at).toLocaleDateString() : ""}</td>
-                        <td className="px-4 py-2">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => handleDelete(m.id)}
-                            disabled={deleting === m.id}
-                            className="text-red-400 hover:bg-red-500/10"
+
+            <TabsContent value="overview" className="p-6 space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <TrendingUp className="w-5 h-5 mr-2 text-green-600" />
+                      Account Summary
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex justify-between items-center py-2 border-b">
+                      <span className="text-gray-600">Available Balance</span>
+                      <span className="font-semibold text-green-600">${currentBalance.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b">
+                      <span className="text-gray-600">Total Deposited</span>
+                      <span className="font-semibold">${totalDeposited.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2">
+                      <span className="text-gray-600">Total Spent</span>
+                      <span className="font-semibold">${totalSpent.toFixed(2)}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Receipt className="w-5 h-5 mr-2 text-blue-600" />
+                      Recent Activity
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {sampleTransactions.slice(0, 3).map((transaction) => (
+                        <div
+                          key={transaction.id}
+                          className="flex items-center justify-between py-2 border-b last:border-b-0"
+                        >
+                          <div>
+                            <p className="font-medium text-sm">{transaction.description}</p>
+                            <p className="text-xs text-gray-500">{transaction.date}</p>
+                          </div>
+                          <span
+                            className={`font-semibold ${transaction.amount > 0 ? "text-green-600" : "text-red-600"}`}
                           >
-                            {deleting === m.id ? <Loader2 className="animate-spin w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                            {transaction.amount > 0 ? "+" : ""}${transaction.amount.toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            )}
-          </div>
-        </Elements>
+            </TabsContent>
+
+            <TabsContent value="transactions" className="p-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">Transaction History</h3>
+                  <Button variant="outline" size="sm">
+                    <Calendar className="w-4 h-4 mr-2" />
+                    Filter by Date
+                  </Button>
+                </div>
+
+                <Card>
+                  <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50 border-b">
+                          <tr>
+                            <th className="text-left p-4 font-medium text-gray-900">Description</th>
+                            <th className="text-left p-4 font-medium text-gray-900">Type</th>
+                            <th className="text-left p-4 font-medium text-gray-900">Amount</th>
+                            <th className="text-left p-4 font-medium text-gray-900">Date</th>
+                            <th className="text-left p-4 font-medium text-gray-900">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sampleTransactions.map((transaction) => (
+                            <tr key={transaction.id} className="border-b hover:bg-gray-50">
+                              <td className="p-4">
+                                <div>
+                                  <p className="font-medium">{transaction.description}</p>
+                                  <p className="text-sm text-gray-500">Transaction #{transaction.id}</p>
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                  {transaction.type}
+                                </span>
+                              </td>
+                              <td className="p-4">
+                                <span
+                                  className={`font-semibold ${transaction.amount > 0 ? "text-green-600" : "text-red-600"}`}
+                                >
+                                  {transaction.amount > 0 ? "+" : ""}${transaction.amount.toFixed(2)}
+                                </span>
+                              </td>
+                              <td className="p-4 text-gray-600">{transaction.date}</td>
+                              <td className="p-4">
+                                <span
+                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    transaction.status === "Completed"
+                                      ? "bg-green-100 text-green-800"
+                                      : "bg-yellow-100 text-yellow-800"
+                                  }`}
+                                >
+                                  {transaction.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="payment-methods" className="p-6">
+              <Elements stripe={stripePromise}>
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold">Payment Methods</h3>
+                      <p className="text-gray-600">Manage your saved payment methods for quick checkout</p>
+                    </div>
+                    <Button onClick={() => setAdding(!adding)} className="bg-blue-600 hover:bg-blue-700">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Payment Method
+                    </Button>
+                  </div>
+
+                  {adding && (
+                    <AddPaymentMethodForm
+                      onAdded={async () => {
+                        setAdding(false)
+                        // Refetch payment methods after add/cancel
+                        const { data } = await supabase
+                          .from("payment_methods")
+                          .select("*")
+                          .eq("user_id", user?.id)
+                          .order("created_at", { ascending: false })
+                        setMethods(data || [])
+                      }}
+                    />
+                  )}
+
+                  {success && (
+                    <div className="flex items-center p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <CheckCircle className="w-5 h-5 text-green-600 mr-3" />
+                      <span className="text-green-800">{success}</span>
+                    </div>
+                  )}
+
+                  {error && (
+                    <div className="flex items-center p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <AlertCircle className="w-5 h-5 text-red-600 mr-3" />
+                      <span className="text-red-800">{error}</span>
+                    </div>
+                  )}
+
+                  {loading ? (
+                    <Card>
+                      <CardContent className="p-8 text-center">
+                        <Loader2 className="animate-spin w-8 h-8 mx-auto mb-4 text-gray-400" />
+                        <p className="text-gray-600">Loading payment methods...</p>
+                      </CardContent>
+                    </Card>
+                  ) : methods.length === 0 ? (
+                    <Card>
+                      <CardContent className="p-8 text-center">
+                        <CreditCard className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                        <h4 className="text-lg font-semibold text-gray-900 mb-2">No payment methods</h4>
+                        <p className="text-gray-600 mb-4">
+                          Add a payment method to start making purchases and adding funds to your account.
+                        </p>
+                        <Button onClick={() => setAdding(true)} className="bg-blue-600 hover:bg-blue-700">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Your First Payment Method
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {methods.map((method) => (
+                        <Card key={method.id} className="relative">
+                          <CardContent className="p-6">
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center">
+                                <CreditCard className="w-8 h-8 text-gray-400 mr-3" />
+                                <div>
+                                  <p className="font-semibold capitalize">{method.brand}</p>
+                                  <p className="text-sm text-gray-600">•••• {method.last4}</p>
+                                </div>
+                              </div>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleDelete(method.id)}
+                                disabled={deleting === method.id}
+                                className="text-red-500 hover:bg-red-50"
+                              >
+                                {deleting === method.id ? (
+                                  <Loader2 className="animate-spin w-4 h-4" />
+                                ) : (
+                                  <Trash2 className="w-4 h-4" />
+                                )}
+                              </Button>
+                            </div>
+                            <div className="space-y-1 text-sm text-gray-600">
+                              <p>
+                                Expires {method.exp_month}/{method.exp_year}
+                              </p>
+                              <p>Added {method.created_at ? new Date(method.created_at).toLocaleDateString() : ""}</p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </Elements>
+            </TabsContent>
+          </Tabs>
+        </Card>
       </div>
     </div>
   )
