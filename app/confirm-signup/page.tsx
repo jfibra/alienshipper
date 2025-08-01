@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseClient } from "@/lib/supabase";
 
-export default function ConfirmSignupPage() {
+
+function ConfirmSignupContent() {
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("");
   const router = useRouter();
@@ -47,5 +48,13 @@ export default function ConfirmSignupPage() {
       <h1 className="text-2xl font-bold mb-4">Confirming Signup</h1>
       <p>{status === "loading" ? "Processing confirmation..." : message}</p>
     </div>
+  );
+}
+
+export default function ConfirmSignupPage() {
+  return (
+    <Suspense fallback={<div className="flex flex-col items-center justify-center min-h-screen"><h1 className="text-2xl font-bold mb-4">Confirming Signup</h1><p>Processing confirmation...</p></div>}>
+      <ConfirmSignupContent />
+    </Suspense>
   );
 }
