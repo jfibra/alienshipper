@@ -5,15 +5,16 @@ import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Loader2, MapPin } from "lucide-react"
+import { MapPin, Loader2 } from "lucide-react"
 import { useAddressAutocomplete } from "@/hooks/use-address-autocomplete"
 import type { LocationIQSuggestion } from "@/lib/types/address"
+import { cn } from "@/lib/utils"
 
 interface AddressAutocompleteProps {
   value: string
   onChange: (value: string) => void
   onAddressSelect: (suggestion: LocationIQSuggestion) => void
-  countryCode: string
+  countryCode?: string
   placeholder?: string
   className?: string
 }
@@ -22,16 +23,16 @@ export function AddressAutocomplete({
   value,
   onChange,
   onAddressSelect,
-  countryCode,
-  placeholder = "Start typing your address...",
+  countryCode = "US",
+  placeholder = "Enter address",
   className,
 }: AddressAutocompleteProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [inputValue, setInputValue] = useState(value)
-  const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const { suggestions, isLoading, search, clearSuggestions } = useAddressAutocomplete(countryCode)
+  const { suggestions, isLoading, error, search, clearSuggestions } = useAddressAutocomplete(countryCode)
 
   useEffect(() => {
     setInputValue(value)
@@ -39,7 +40,12 @@ export function AddressAutocomplete({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false)
       }
     }
@@ -63,9 +69,8 @@ export function AddressAutocomplete({
   }
 
   const handleSuggestionClick = (suggestion: LocationIQSuggestion) => {
-    const addressText = suggestion.display_name.split(",")[0] // Get the first part (street address)
-    setInputValue(addressText)
-    onChange(addressText)
+    setInputValue(suggestion.display_name)
+    onChange(suggestion.display_name)
     onAddressSelect(suggestion)
     setIsOpen(false)
     clearSuggestions()
@@ -78,43 +83,58 @@ export function AddressAutocomplete({
   }
 
   return (
-    <div ref={containerRef} className="relative">
-      <Input
-        ref={inputRef}
-        value={inputValue}
-        onChange={handleInputChange}
-        onFocus={handleInputFocus}
-        placeholder={placeholder}
-        className={className}
-        autoComplete="off"
-      />
-
-      {isOpen && (suggestions.length > 0 || isLoading) && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
-          {isLoading && (
-            <div className="flex items-center justify-center p-3">
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              <span className="text-sm text-gray-500">Searching addresses...</span>
-            </div>
+    <div className="relative">
+      <div className="relative">
+        <Input
+          ref={inputRef}
+          type="text"
+          value={inputValue}
+          onChange={handleInputChange}
+          onFocus={handleInputFocus}
+          placeholder={placeholder}
+          className={cn("pr-10", className)}
+        />
+        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+          ) : (
+            <MapPin className="h-4 w-4 text-gray-400" />
           )}
+        </div>
+      </div>
 
-          {!isLoading &&
+      {isOpen && (suggestions.length > 0 || error) && (
+        <div
+          ref={dropdownRef}
+          className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto"
+        >
+          {error ? (
+            <div className="p-3 text-sm text-red-600">
+              <p>{error}</p>
+            </div>
+          ) : (
             suggestions.map((suggestion) => (
               <Button
                 key={suggestion.place_id}
                 variant="ghost"
-                className="w-full justify-start p-3 h-auto text-left hover:bg-gray-50"
+                className="w-full justify-start text-left h-auto p-3 hover:bg-gray-50"
                 onClick={() => handleSuggestionClick(suggestion)}
               >
-                <MapPin className="h-4 w-4 mr-2 flex-shrink-0 text-gray-400" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-900 truncate">{suggestion.display_name}</div>
+                <div className="flex items-start gap-2">
+                  <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{suggestion.display_name}</p>
+                    {suggestion.address && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        {[suggestion.address.city, suggestion.address.state, suggestion.address.country]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </Button>
-            ))}
-
-          {!isLoading && suggestions.length === 0 && inputValue.length >= 3 && (
-            <div className="p-3 text-sm text-gray-500 text-center">No addresses found</div>
+            ))
           )}
         </div>
       )}

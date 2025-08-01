@@ -1,342 +1,302 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
-import { AddressAutocomplete } from "@/components/address-autocomplete"
-import {
-  recipientAddressSchema,
-  shippingAddressSchema,
-  type RecipientAddressFormData,
-  type ShippingAddressFormData,
-} from "@/lib/validations/address"
-import type { Country, RecipientAddress, ShippingAddress, UserProfile, LocationIQSuggestion } from "@/lib/types/address"
+import { AddressAutocomplete } from "./address-autocomplete"
+import { recipientAddressSchema, shippingAddressSchema } from "@/lib/validations/address"
+import type { RecipientAddress, ShippingAddress, UserProfile, Country, LocationIQSuggestion } from "@/lib/types/address"
 
 interface AddressFormProps {
-  isOpen: boolean
-  onClose: () => void
-  onSubmit: (data: RecipientAddressFormData | ShippingAddressFormData) => Promise<void>
   type: "recipient" | "shipping"
-  editingAddress?: RecipientAddress | ShippingAddress | null
+  address?: RecipientAddress | ShippingAddress
   countries: Country[]
   userProfile?: UserProfile
+  onSubmit: (data: any) => Promise<void>
+  onCancel: () => void
+  isLoading?: boolean
 }
 
 export function AddressForm({
-  isOpen,
-  onClose,
-  onSubmit,
   type,
-  editingAddress,
+  address,
   countries,
   userProfile,
+  onSubmit,
+  onCancel,
+  isLoading = false,
 }: AddressFormProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
   const schema = type === "recipient" ? recipientAddressSchema : shippingAddressSchema
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-    setValue,
-    watch,
-    getValues,
-  } = useForm<RecipientAddressFormData | ShippingAddressFormData>({
+  const form = useForm({
     resolver: zodResolver(schema),
     defaultValues: {
       full_name: "",
       email: "",
-      phone: "",
+      [type === "recipient" ? "phone_number" : "phone"]: "",
       company: "",
-      street_address: "",
-      street_address_2: "",
+      [type === "recipient" ? "street1" : "address_line1"]: "",
+      [type === "recipient" ? "street2" : "address_line2"]: "",
       city: "",
       state: "",
       postal_code: "",
       country: "United States",
       country_code: "US",
-      address_type: "residential",
-      is_default: false,
-      ...(type === "shipping" && { usage_type: "shipping" }),
+      address_type: "residential" as const,
+      ...(type === "shipping" && { usage_type: "shipping" as const }),
+      ...(type === "recipient" && { is_default: false }),
     },
   })
 
-  const selectedCountry = watch("country")
-  const selectedCountryCode = watch("country_code")
-  const selectedAddressType = watch("address_type")
-  const selectedUsageType =
-    type === "shipping" ? watch("usage_type" as keyof (RecipientAddressFormData | ShippingAddressFormData)) : undefined
-  const streetAddress = watch("street_address")
-  const isDefault = watch("is_default")
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = form
+  const watchedCountry = watch("country")
+  const watchedCountryCode = watch("country_code")
 
   // Auto-fill user data for shipping addresses
   useEffect(() => {
-    if (isOpen && !editingAddress && type === "shipping" && userProfile) {
-      setValue("full_name", userProfile.full_name || "")
-      setValue("email", userProfile.email || "")
-      setValue("phone", userProfile.phone || "")
-      setValue("company", userProfile.company || "")
+    if (type === "shipping" && userProfile && !address) {
+      if (userProfile.full_name) setValue("full_name", userProfile.full_name)
+      if (userProfile.email) setValue("email", userProfile.email)
+      if (userProfile.phone) setValue("phone", userProfile.phone)
+      if (userProfile.company) setValue("company", userProfile.company)
     }
-  }, [isOpen, editingAddress, type, userProfile, setValue])
+  }, [type, userProfile, address, setValue])
 
+  // Load existing address data
   useEffect(() => {
-    if (editingAddress) {
-      // Map database fields to form fields
-      const mappedAddress = {
-        full_name: editingAddress.full_name,
-        email: editingAddress.email,
-        phone: type === "recipient" ? (editingAddress as RecipientAddress).phone_number : editingAddress.phone,
-        company: editingAddress.company,
-        street_address:
-          type === "recipient"
-            ? (editingAddress as RecipientAddress).street1
-            : (editingAddress as ShippingAddress).address_line1,
-        street_address_2:
-          type === "recipient"
-            ? (editingAddress as RecipientAddress).street2
-            : (editingAddress as ShippingAddress).address_line2,
-        city: editingAddress.city,
-        state: editingAddress.state,
-        postal_code: editingAddress.postal_code,
-        country: editingAddress.country,
-        country_code: editingAddress.country_code,
-        address_type: editingAddress.address_type,
-        is_default: editingAddress.is_default,
-        ...(type === "shipping" && { usage_type: (editingAddress as ShippingAddress).usage_type }),
+    if (address) {
+      setValue("full_name", address.full_name)
+      setValue("email", address.email || "")
+      setValue(
+        type === "recipient" ? "phone_number" : "phone",
+        type === "recipient"
+          ? (address as RecipientAddress).phone_number || ""
+          : (address as ShippingAddress).phone || "",
+      )
+      setValue("company", address.company || "")
+      setValue(
+        type === "recipient" ? "street1" : "address_line1",
+        type === "recipient" ? (address as RecipientAddress).street1 : (address as ShippingAddress).address_line1,
+      )
+      setValue(
+        type === "recipient" ? "street2" : "address_line2",
+        type === "recipient"
+          ? (address as RecipientAddress).street2 || ""
+          : (address as ShippingAddress).address_line2 || "",
+      )
+      setValue("city", address.city)
+      setValue("state", address.state)
+      setValue("postal_code", address.postal_code)
+      setValue("country", address.country)
+      setValue("country_code", address.country_code)
+      setValue("address_type", address.address_type)
+
+      if (type === "shipping") {
+        setValue("usage_type", (address as ShippingAddress).usage_type)
       }
 
-      Object.entries(mappedAddress).forEach(([key, value]) => {
-        if (value !== undefined) {
-          setValue(key as keyof (RecipientAddressFormData | ShippingAddressFormData), value)
-        }
-      })
-    } else {
-      const defaultValues = {
-        full_name: type === "shipping" && userProfile ? userProfile.full_name || "" : "",
-        email: type === "shipping" && userProfile ? userProfile.email || "" : "",
-        phone: type === "shipping" && userProfile ? userProfile.phone || "" : "",
-        company: type === "shipping" && userProfile ? userProfile.company || "" : "",
-        street_address: "",
-        street_address_2: "",
-        city: "",
-        state: "",
-        postal_code: "",
-        country: "United States",
-        country_code: "US",
-        address_type: "residential",
-        is_default: false,
-        ...(type === "shipping" && { usage_type: "shipping" }),
+      if (type === "recipient") {
+        setValue("is_default", (address as RecipientAddress).is_default || false)
       }
-      reset(defaultValues)
     }
-  }, [editingAddress, reset, setValue, type, userProfile])
+  }, [address, setValue, type])
 
-  const handleCountryChange = (countryCode: string) => {
-    const country = countries.find((c) => c.code === countryCode)
+  const handleCountryChange = (countryName: string) => {
+    const country = countries.find((c) => c.name === countryName)
     if (country) {
-      setValue("country_code", countryCode)
       setValue("country", country.name)
+      setValue("country_code", country.code)
     }
   }
 
   const handleAddressSelect = (suggestion: LocationIQSuggestion) => {
-    const address = suggestion.address
-
-    if (address.city) setValue("city", address.city)
-    if (address.state) setValue("state", address.state)
-    if (address.postcode) setValue("postal_code", address.postcode)
-    if (address.country_code) {
-      const country = countries.find((c) => c.code.toLowerCase() === address.country_code?.toLowerCase())
-      if (country) {
-        setValue("country_code", country.code)
-        setValue("country", country.name)
+    if (suggestion.address) {
+      if (suggestion.address.city) setValue("city", suggestion.address.city)
+      if (suggestion.address.state) setValue("state", suggestion.address.state)
+      if (suggestion.address.postcode) setValue("postal_code", suggestion.address.postcode)
+      if (suggestion.address.country) {
+        const country = countries.find((c) => c.code === suggestion.address.country_code?.toUpperCase())
+        if (country) {
+          setValue("country", country.name)
+          setValue("country_code", country.code)
+        }
       }
     }
   }
 
-  const handleFormSubmit = async (data: RecipientAddressFormData | ShippingAddressFormData) => {
-    setIsSubmitting(true)
-    try {
-      await onSubmit(data)
-      onClose()
-      reset()
-    } catch (error) {
-      console.error("Error submitting form:", error)
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
+  const addressTypes = [
+    { value: "residential", label: "Residential" },
+    { value: "commercial", label: "Commercial" },
+    { value: "warehouse", label: "Warehouse" },
+    { value: "government", label: "Government" },
+    { value: "pickup_point", label: "Pickup Point" },
+    { value: "other", label: "Other" },
+  ]
 
-  const handleClose = () => {
-    onClose()
-    reset()
-  }
+  const usageTypes = [
+    { value: "shipping", label: "Shipping Only" },
+    { value: "return", label: "Return Only" },
+    { value: "both", label: "Both Shipping & Return" },
+  ]
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {editingAddress ? "Edit" : "Add"} {type === "recipient" ? "Recipient" : "Shipping"} Address
-          </DialogTitle>
-        </DialogHeader>
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="full_name">Full Name *</Label>
+          <Input id="full_name" {...register("full_name")} className={errors.full_name ? "border-red-500" : ""} />
+          {errors.full_name && <p className="text-sm text-red-500 mt-1">{errors.full_name.message}</p>}
+        </div>
 
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="full_name">Full Name *</Label>
-              <Input id="full_name" {...register("full_name")} placeholder="John Doe" />
-              {errors.full_name && <p className="text-sm text-red-600">{errors.full_name.message}</p>}
-            </div>
+        <div>
+          <Label htmlFor="email">Email</Label>
+          <Input id="email" type="email" {...register("email")} className={errors.email ? "border-red-500" : ""} />
+          {errors.email && <p className="text-sm text-red-500 mt-1">{errors.email.message}</p>}
+        </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
-              <Input id="email" type="email" {...register("email")} placeholder="john@example.com" />
-              {errors.email && <p className="text-sm text-red-600">{errors.email.message}</p>}
-            </div>
+        <div>
+          <Label htmlFor={type === "recipient" ? "phone_number" : "phone"}>Phone Number</Label>
+          <Input
+            id={type === "recipient" ? "phone_number" : "phone"}
+            {...register(type === "recipient" ? "phone_number" : "phone")}
+          />
+        </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input id="phone" {...register("phone")} placeholder="+1 (555) 123-4567" />
-              {errors.phone && <p className="text-sm text-red-600">{errors.phone.message}</p>}
-            </div>
+        <div>
+          <Label htmlFor="company">Company</Label>
+          <Input id="company" {...register("company")} />
+        </div>
+      </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="company">Company</Label>
-              <Input id="company" {...register("company")} placeholder="Acme Corp" />
-              {errors.company && <p className="text-sm text-red-600">{errors.company.message}</p>}
-            </div>
+      <div>
+        <Label htmlFor={type === "recipient" ? "street1" : "address_line1"}>Street Address *</Label>
+        <AddressAutocomplete
+          value={watch(type === "recipient" ? "street1" : "address_line1")}
+          onChange={(value) => setValue(type === "recipient" ? "street1" : "address_line1", value)}
+          onAddressSelect={handleAddressSelect}
+          countryCode={watchedCountryCode}
+          placeholder="Enter street address"
+          className={errors[type === "recipient" ? "street1" : "address_line1"] ? "border-red-500" : ""}
+        />
+        {errors[type === "recipient" ? "street1" : "address_line1"] && (
+          <p className="text-sm text-red-500 mt-1">
+            {errors[type === "recipient" ? "street1" : "address_line1"]?.message}
+          </p>
+        )}
+      </div>
+
+      <div>
+        <Label htmlFor={type === "recipient" ? "street2" : "address_line2"}>Street Address 2</Label>
+        <Input
+          id={type === "recipient" ? "street2" : "address_line2"}
+          {...register(type === "recipient" ? "street2" : "address_line2")}
+          placeholder="Apartment, suite, etc. (optional)"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <Label htmlFor="city">City *</Label>
+          <Input id="city" {...register("city")} className={errors.city ? "border-red-500" : ""} />
+          {errors.city && <p className="text-sm text-red-500 mt-1">{errors.city.message}</p>}
+        </div>
+
+        <div>
+          <Label htmlFor="state">State *</Label>
+          <Input id="state" {...register("state")} className={errors.state ? "border-red-500" : ""} />
+          {errors.state && <p className="text-sm text-red-500 mt-1">{errors.state.message}</p>}
+        </div>
+
+        <div>
+          <Label htmlFor="postal_code">Postal Code *</Label>
+          <Input id="postal_code" {...register("postal_code")} className={errors.postal_code ? "border-red-500" : ""} />
+          {errors.postal_code && <p className="text-sm text-red-500 mt-1">{errors.postal_code.message}</p>}
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="country">Country *</Label>
+        <Select value={watchedCountry} onValueChange={handleCountryChange}>
+          <SelectTrigger className={errors.country ? "border-red-500" : ""}>
+            <SelectValue placeholder="Select country" />
+          </SelectTrigger>
+          <SelectContent>
+            {countries.map((country) => (
+              <SelectItem key={country.code} value={country.name}>
+                {country.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {errors.country && <p className="text-sm text-red-500 mt-1">{errors.country.message}</p>}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="address_type">Address Type *</Label>
+          <Select value={watch("address_type")} onValueChange={(value) => setValue("address_type", value as any)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select address type" />
+            </SelectTrigger>
+            <SelectContent>
+              {addressTypes.map((type) => (
+                <SelectItem key={type.value} value={type.value}>
+                  {type.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {type === "shipping" && (
+          <div>
+            <Label htmlFor="usage_type">Usage Type *</Label>
+            <Select value={watch("usage_type")} onValueChange={(value) => setValue("usage_type", value as any)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select usage type" />
+              </SelectTrigger>
+              <SelectContent>
+                {usageTypes.map((type) => (
+                  <SelectItem key={type.value} value={type.value}>
+                    {type.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+        )}
+      </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="street_address">Street Address *</Label>
-            <AddressAutocomplete
-              value={streetAddress}
-              onChange={(value) => setValue("street_address", value)}
-              onAddressSelect={handleAddressSelect}
-              countryCode={selectedCountryCode}
-              placeholder="Start typing your address..."
-            />
-            {errors.street_address && <p className="text-sm text-red-600">{errors.street_address.message}</p>}
-          </div>
+      {type === "recipient" && (
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="is_default"
+            checked={watch("is_default")}
+            onCheckedChange={(checked) => setValue("is_default", checked as boolean)}
+          />
+          <Label htmlFor="is_default">Set as default address</Label>
+        </div>
+      )}
 
-          <div className="space-y-2">
-            <Label htmlFor="street_address_2">Street Address 2</Label>
-            <Input id="street_address_2" {...register("street_address_2")} placeholder="Apt 4B, Suite 100, etc." />
-            {errors.street_address_2 && <p className="text-sm text-red-600">{errors.street_address_2.message}</p>}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="city">City *</Label>
-              <Input id="city" {...register("city")} placeholder="New York" />
-              {errors.city && <p className="text-sm text-red-600">{errors.city.message}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="state">State *</Label>
-              <Input id="state" {...register("state")} placeholder="NY" />
-              {errors.state && <p className="text-sm text-red-600">{errors.state.message}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="postal_code">Postal Code *</Label>
-              <Input id="postal_code" {...register("postal_code")} placeholder="10001" />
-              {errors.postal_code && <p className="text-sm text-red-600">{errors.postal_code.message}</p>}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Country *</Label>
-              <Select value={selectedCountryCode} onValueChange={handleCountryChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a country" />
-                </SelectTrigger>
-                <SelectContent>
-                  {countries.map((country) => (
-                    <SelectItem key={country.code} value={country.code}>
-                      {country.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.country && <p className="text-sm text-red-600">{errors.country.message}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label>Address Type *</Label>
-              <Select value={selectedAddressType} onValueChange={(value) => setValue("address_type", value as any)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select address type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="residential">Residential</SelectItem>
-                  <SelectItem value="commercial">Commercial</SelectItem>
-                  <SelectItem value="warehouse">Warehouse</SelectItem>
-                  <SelectItem value="government">Government</SelectItem>
-                  <SelectItem value="pickup_point">Pickup Point</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.address_type && <p className="text-sm text-red-600">{errors.address_type.message}</p>}
-            </div>
-          </div>
-
-          {type === "shipping" && (
-            <div className="space-y-2">
-              <Label>Usage Type *</Label>
-              <Select
-                value={selectedUsageType as string}
-                onValueChange={(value) =>
-                  setValue("usage_type" as keyof (RecipientAddressFormData | ShippingAddressFormData), value as any)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select usage type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="shipping">Shipping Only</SelectItem>
-                  <SelectItem value="return">Return Only</SelectItem>
-                  <SelectItem value="both">Both Shipping & Return</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.usage_type && <p className="text-sm text-red-600">{(errors as any).usage_type.message}</p>}
-            </div>
-          )}
-
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="is_default"
-              checked={isDefault}
-              onCheckedChange={(checked) => setValue("is_default", checked as boolean)}
-            />
-            <Label
-              htmlFor="is_default"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              Set as default address
-            </Label>
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Saving..." : editingAddress ? "Update Address" : "Add Address"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <div className="flex justify-end space-x-2 pt-4">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isLoading}>
+          {isLoading ? "Saving..." : address ? "Update Address" : "Add Address"}
+        </Button>
+      </div>
+    </form>
   )
 }

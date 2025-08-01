@@ -20,11 +20,15 @@ export function useAddressAutocomplete(countryCode = "US") {
       setError(null)
 
       try {
-        const apiKey = process.env.NEXT_PUBLIC_LOCATION_IQ_API_KEY || "pk.fd453d1d34b1ce7133796b811cbd3ee1"
+        const apiKey = process.env.NEXT_PUBLIC_LOCATION_IQ_API_KEY
+        if (!apiKey) {
+          throw new Error("LocationIQ API key not configured")
+        }
+
         const response = await fetch(
-          `https://api.locationiq.com/v1/autocomplete.php?key=${apiKey}&q=${encodeURIComponent(
+          `https://us1.locationiq.com/v1/search.php?key=${apiKey}&q=${encodeURIComponent(
             query,
-          )}&countrycodes=${country}&limit=5&format=json`,
+          )}&format=json&addressdetails=1&limit=5&countrycodes=${country.toLowerCase()}`,
         )
 
         if (!response.ok) {
@@ -32,10 +36,10 @@ export function useAddressAutocomplete(countryCode = "US") {
         }
 
         const data = await response.json()
-        setSuggestions(data || [])
+        setSuggestions(Array.isArray(data) ? data : [])
       } catch (err) {
-        console.error("Address autocomplete error:", err)
-        setError("Failed to fetch address suggestions")
+        console.error("Address search error:", err)
+        setError(err instanceof Error ? err.message : "Failed to search addresses")
         setSuggestions([])
       } finally {
         setIsLoading(false)

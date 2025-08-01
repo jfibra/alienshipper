@@ -1,10 +1,10 @@
 "use client"
 
 import { useState } from "react"
+import { Edit, Trash2, Star, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,33 +16,35 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Edit, Trash2, MapPin, Mail, Phone, Building, Star } from "lucide-react"
-import type { Country, RecipientAddress, ShippingAddress } from "@/lib/types/address"
+import type { RecipientAddress, ShippingAddress } from "@/lib/types/address"
 
 interface AddressListProps {
-  addresses: (RecipientAddress | ShippingAddress)[]
-  countries: Country[]
   type: "recipient" | "shipping"
+  addresses: (RecipientAddress | ShippingAddress)[]
   onEdit: (address: RecipientAddress | ShippingAddress) => void
   onDelete: (id: string) => Promise<void>
-  isLoading: boolean
+  isLoading?: boolean
 }
 
-export function AddressList({ addresses, countries, type, onEdit, onDelete, isLoading }: AddressListProps) {
+export function AddressList({ type, addresses, onEdit, onDelete, isLoading = false }: AddressListProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  const getCountryName = (countryCode: string) => {
-    const country = countries.find((c) => c.code === countryCode)
-    return country?.name || countryCode
+  const handleDelete = async (id: string) => {
+    setDeletingId(id)
+    try {
+      await onDelete(id)
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   const getAddressTypeColor = (addressType: string) => {
     const colors = {
       residential: "bg-blue-100 text-blue-800",
-      commercial: "bg-purple-100 text-purple-800",
-      warehouse: "bg-green-100 text-green-800",
-      government: "bg-orange-100 text-orange-800",
-      pickup_point: "bg-pink-100 text-pink-800",
+      commercial: "bg-green-100 text-green-800",
+      warehouse: "bg-orange-100 text-orange-800",
+      government: "bg-purple-100 text-purple-800",
+      pickup_point: "bg-yellow-100 text-yellow-800",
       other: "bg-gray-100 text-gray-800",
     }
     return colors[addressType as keyof typeof colors] || colors.other
@@ -51,68 +53,10 @@ export function AddressList({ addresses, countries, type, onEdit, onDelete, isLo
   const getUsageTypeColor = (usageType: string) => {
     const colors = {
       shipping: "bg-emerald-100 text-emerald-800",
-      return: "bg-amber-100 text-amber-800",
+      return: "bg-red-100 text-red-800",
       both: "bg-indigo-100 text-indigo-800",
     }
     return colors[usageType as keyof typeof colors] || colors.shipping
-  }
-
-  const handleDelete = async (id: string) => {
-    setDeletingId(id)
-    try {
-      await onDelete(id)
-    } catch (error) {
-      console.error("Error deleting address:", error)
-    } finally {
-      setDeletingId(null)
-    }
-  }
-
-  const getStreetAddress = (address: RecipientAddress | ShippingAddress) => {
-    if (type === "recipient") {
-      return (address as RecipientAddress).street1
-    }
-    return (address as ShippingAddress).address_line1
-  }
-
-  const getStreetAddress2 = (address: RecipientAddress | ShippingAddress) => {
-    if (type === "recipient") {
-      return (address as RecipientAddress).street2
-    }
-    return (address as ShippingAddress).address_line2
-  }
-
-  const getPhoneNumber = (address: RecipientAddress | ShippingAddress) => {
-    if (type === "recipient") {
-      return (address as RecipientAddress).phone_number
-    }
-    return (address as ShippingAddress).phone
-  }
-
-  if (isLoading) {
-    return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, index) => (
-          <Card key={index}>
-            <CardHeader>
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-3 w-1/2" />
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <Skeleton className="h-3 w-full" />
-                <Skeleton className="h-3 w-full" />
-                <Skeleton className="h-3 w-3/4" />
-                <div className="flex gap-2 mt-4">
-                  <Skeleton className="h-8 w-16" />
-                  <Skeleton className="h-8 w-16" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    )
   }
 
   if (addresses.length === 0) {
@@ -130,94 +74,94 @@ export function AddressList({ addresses, countries, type, onEdit, onDelete, isLo
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {addresses.map((address) => (
-        <Card key={address.id} className="hover:shadow-md transition-shadow">
+        <Card key={address.id} className="relative">
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-lg font-semibold">{address.full_name}</CardTitle>
-                  {address.is_default && (
-                    <Star className="h-4 w-4 text-yellow-500 fill-current" title="Default address" />
-                  )}
-                </div>
-                <div className="flex items-center gap-2 mt-2">
-                  <Badge className={getAddressTypeColor(address.address_type)}>
-                    {address.address_type.replace("_", " ")}
-                  </Badge>
-                  {type === "shipping" && "usage_type" in address && (
-                    <Badge className={getUsageTypeColor(address.usage_type)}>{address.usage_type}</Badge>
-                  )}
-                </div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                {address.full_name}
+                {type === "recipient" && (address as RecipientAddress).is_default && (
+                  <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                )}
+              </CardTitle>
+              <div className="flex gap-1">
+                <Button variant="ghost" size="sm" onClick={() => onEdit(address)} disabled={isLoading}>
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="sm" disabled={isLoading || deletingId === address.id}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Address</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete this address? This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => handleDelete(address.id!)}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Badge className={getAddressTypeColor(address.address_type)}>{address.address_type}</Badge>
+              {type === "shipping" && (
+                <Badge className={getUsageTypeColor((address as ShippingAddress).usage_type)}>
+                  {(address as ShippingAddress).usage_type}
+                </Badge>
+              )}
             </div>
           </CardHeader>
-
-          <CardContent className="space-y-3">
-            <div className="space-y-2 text-sm">
-              <div className="flex items-start gap-2">
-                <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <div>{getStreetAddress(address)}</div>
-                  {getStreetAddress2(address) && <div>{getStreetAddress2(address)}</div>}
-                  <div>
-                    {address.city}, {address.state} {address.postal_code}
-                  </div>
-                  <div>{getCountryName(address.country_code)}</div>
-                </div>
+          <CardContent className="space-y-2">
+            <div className="text-sm text-gray-600">
+              <div>
+                {type === "recipient"
+                  ? (address as RecipientAddress).street1
+                  : (address as ShippingAddress).address_line1}
               </div>
-
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                <span className="truncate">{address.email}</span>
-              </div>
-
-              {getPhoneNumber(address) && (
-                <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                  <span>{getPhoneNumber(address)}</span>
+              {((type === "recipient" && (address as RecipientAddress).street2) ||
+                (type === "shipping" && (address as ShippingAddress).address_line2)) && (
+                <div>
+                  {type === "recipient"
+                    ? (address as RecipientAddress).street2
+                    : (address as ShippingAddress).address_line2}
                 </div>
               )}
-
-              {address.company && (
-                <div className="flex items-center gap-2">
-                  <Building className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                  <span className="truncate">{address.company}</span>
-                </div>
-              )}
+              <div>
+                {address.city}, {address.state} {address.postal_code}
+              </div>
+              <div>{address.country}</div>
             </div>
 
-            <div className="flex gap-2 pt-2">
-              <Button variant="outline" size="sm" onClick={() => onEdit(address)} className="flex-1">
-                <Edit className="h-4 w-4 mr-1" />
-                Edit
-              </Button>
+            {address.company && (
+              <div className="text-sm text-gray-600">
+                <strong>Company:</strong> {address.company}
+              </div>
+            )}
 
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 bg-transparent">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Address</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Are you sure you want to delete this address? This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => address.id && handleDelete(address.id)}
-                      disabled={deletingId === address.id}
-                      className="bg-red-600 hover:bg-red-700"
-                    >
-                      {deletingId === address.id ? "Deleting..." : "Delete"}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
+            {address.email && (
+              <div className="text-sm text-gray-600">
+                <strong>Email:</strong> {address.email}
+              </div>
+            )}
+
+            {((type === "recipient" && (address as RecipientAddress).phone_number) ||
+              (type === "shipping" && (address as ShippingAddress).phone)) && (
+              <div className="text-sm text-gray-600">
+                <strong>Phone:</strong>{" "}
+                {type === "recipient" ? (address as RecipientAddress).phone_number : (address as ShippingAddress).phone}
+              </div>
+            )}
           </CardContent>
         </Card>
       ))}

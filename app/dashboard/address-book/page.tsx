@@ -1,76 +1,77 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Plus } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Skeleton } from "@/components/ui/skeleton"
+import { toast } from "sonner"
 import { AddressForm } from "@/components/address-form"
 import { AddressList } from "@/components/address-list"
 import { supabase } from "@/lib/supabase"
-import { toast } from "sonner"
-import type { Country, RecipientAddress, ShippingAddress, UserProfile } from "@/lib/types/address"
-import type { RecipientAddressFormData, ShippingAddressFormData } from "@/lib/validations/address"
+import type { RecipientAddress, ShippingAddress, UserProfile, Country } from "@/lib/types/address"
 
-export default function AddressBook() {
-  const [activeTab, setActiveTab] = useState("recipient")
-  const [isFormOpen, setIsFormOpen] = useState(false)
-  const [editingAddress, setEditingAddress] = useState<RecipientAddress | ShippingAddress | null>(null)
+export default function AddressBookPage() {
   const [recipientAddresses, setRecipientAddresses] = useState<RecipientAddress[]>([])
   const [shippingAddresses, setShippingAddresses] = useState<ShippingAddress[]>([])
   const [countries, setCountries] = useState<Country[]>([])
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [user, setUser] = useState<any>(null)
-  const [userProfile, setUserProfile] = useState<UserProfile | undefined>(undefined)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [dialogType, setDialogType] = useState<"recipient" | "shipping">("recipient")
+  const [editingAddress, setEditingAddress] = useState<RecipientAddress | ShippingAddress | null>(null)
 
-  // Load countries data
   useEffect(() => {
-    const loadCountries = async () => {
-      try {
-        const response = await fetch("/countries.json")
-        const countriesData = await response.json()
-        setCountries(countriesData)
-      } catch (error) {
-        console.error("Error loading countries:", error)
-        toast.error("Failed to load countries data")
-      }
-    }
-    loadCountries()
+    loadData()
   }, [])
 
-  // Get current user and profile
-  useEffect(() => {
-    const getUser = async () => {
+  const loadData = async () => {
+    try {
+      setIsLoading(true)
+
+      // Load countries
+      const countriesResponse = await fetch("/countries.json")
+      const countriesData = await countriesResponse.json()
+      setCountries(countriesData)
+
+      // Get current user
       const {
         data: { user },
       } = await supabase.auth.getUser()
-      setUser(user)
+      if (!user) {
+        toast.error("Please log in to view your addresses")
+        return
+      }
 
-      if (user) {
-        // Create user profile from auth data
+      // Load user profile
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, phone, company")
+        .eq("id", user.id)
+        .single()
+
+      if (profile) {
+        setUserProfile({
+          id: profile.id,
+          full_name: profile.full_name,
+          email: profile.email || user.email,
+          phone: profile.phone,
+          company: profile.company,
+        })
+      } else {
+        // Fallback to user data
         setUserProfile({
           id: user.id,
-          full_name: user.user_metadata?.full_name || user.user_metadata?.name || "",
-          email: user.email || "",
-          phone: user.user_metadata?.phone || "",
-          company: user.user_metadata?.company || "",
+          email: user.email,
+          full_name: user.user_metadata?.full_name,
+          phone: user.user_metadata?.phone,
+          company: user.user_metadata?.company,
         })
       }
-    }
-    getUser()
-  }, [])
 
-  // Load addresses
-  useEffect(() => {
-    if (user) {
-      loadAddresses()
-    }
-  }, [user])
-
-  const loadAddresses = async () => {
-    if (!user) return
-
-    setIsLoading(true)
-    try {
       // Load recipient addresses
       const { data: recipientData, error: recipientError } = await supabase
         .from("recipient_addresses")
@@ -78,7 +79,12 @@ export default function AddressBook() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
 
-      if (recipientError) throw recipientError
+      if (recipientError) {
+        console.error("Error loading recipient addresses:", recipientError)
+        toast.error("Failed to load recipient addresses")
+      } else {
+        setRecipientAddresses(recipientData || [])
+      }
 
       // Load shipping addresses
       const { data: shippingData, error: shippingError } = await supabase
@@ -87,191 +93,248 @@ export default function AddressBook() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
 
-      if (shippingError) throw shippingError
-
-      setRecipientAddresses(recipientData || [])
-      setShippingAddresses(shippingData || [])
+      if (shippingError) {
+        console.error("Error loading shipping addresses:", shippingError)
+        toast.error("Failed to load shipping addresses")
+      } else {
+        setShippingAddresses(shippingData || [])
+      }
     } catch (error) {
-      console.error("Error loading addresses:", error)
-      toast.error("Failed to load addresses")
+      console.error("Error loading data:", error)
+      toast.error("Failed to load address book data")
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleAddAddress = () => {
+  const handleAddAddress = (type: "recipient" | "shipping") => {
+    setDialogType(type)
     setEditingAddress(null)
-    setIsFormOpen(true)
+    setIsDialogOpen(true)
   }
 
   const handleEditAddress = (address: RecipientAddress | ShippingAddress) => {
+    setDialogType("street1" in address ? "recipient" : "shipping")
     setEditingAddress(address)
-    setIsFormOpen(true)
+    setIsDialogOpen(true)
   }
 
-  const handleSubmitAddress = async (data: RecipientAddressFormData | ShippingAddressFormData) => {
-    if (!user) return
-
+  const handleSubmitAddress = async (data: any) => {
     try {
-      if (activeTab === "recipient") {
-        // Map form data to database schema for recipient addresses
-        const recipientData = {
-          user_id: user.id,
-          full_name: data.full_name,
-          email: data.email,
-          phone_number: data.phone || null,
-          company: data.company || null,
-          street1: data.street_address,
-          street2: data.street_address_2 || null,
-          city: data.city,
-          state: data.state,
-          postal_code: data.postal_code,
-          country: data.country,
-          country_code: data.country_code,
-          address_type: data.address_type,
-          is_default: data.is_default || false,
-          updated_at: new Date().toISOString(),
-        }
+      setIsSubmitting(true)
 
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) {
+        toast.error("Please log in to save addresses")
+        return
+      }
+
+      const addressData = {
+        ...data,
+        user_id: user.id,
+      }
+
+      if (dialogType === "recipient") {
         if (editingAddress) {
           // Update existing recipient address
-          const { error } = await supabase.from("recipient_addresses").update(recipientData).eq("id", editingAddress.id)
+          const { error } = await supabase.from("recipient_addresses").update(addressData).eq("id", editingAddress.id)
 
           if (error) throw error
+
+          setRecipientAddresses((prev) =>
+            prev.map((addr) => (addr.id === editingAddress.id ? { ...addr, ...addressData } : addr)),
+          )
           toast.success("Recipient address updated successfully")
         } else {
           // Create new recipient address
-          const { error } = await supabase.from("recipient_addresses").insert({
-            ...recipientData,
-            created_at: new Date().toISOString(),
-          })
+          const { data: newAddress, error } = await supabase
+            .from("recipient_addresses")
+            .insert(addressData)
+            .select()
+            .single()
 
           if (error) throw error
+
+          setRecipientAddresses((prev) => [newAddress, ...prev])
           toast.success("Recipient address added successfully")
         }
       } else {
-        // Map form data to database schema for shipping addresses
-        const shippingData = {
-          user_id: user.id,
-          full_name: data.full_name,
-          email: data.email,
-          phone: data.phone || null,
-          company: data.company || null,
-          address_line1: data.street_address,
-          address_line2: data.street_address_2 || null,
-          city: data.city,
-          state: data.state,
-          postal_code: data.postal_code,
-          country: data.country,
-          country_code: data.country_code,
-          address_type: data.address_type,
-          usage_type: (data as ShippingAddressFormData).usage_type,
-          is_default: data.is_default || false,
-          updated_at: new Date().toISOString(),
-        }
-
         if (editingAddress) {
           // Update existing shipping address
-          const { error } = await supabase.from("shipping_addresses").update(shippingData).eq("id", editingAddress.id)
+          const { error } = await supabase.from("shipping_addresses").update(addressData).eq("id", editingAddress.id)
 
           if (error) throw error
+
+          setShippingAddresses((prev) =>
+            prev.map((addr) => (addr.id === editingAddress.id ? { ...addr, ...addressData } : addr)),
+          )
           toast.success("Shipping address updated successfully")
         } else {
           // Create new shipping address
-          const { error } = await supabase.from("shipping_addresses").insert({
-            ...shippingData,
-            created_at: new Date().toISOString(),
-          })
+          const { data: newAddress, error } = await supabase
+            .from("shipping_addresses")
+            .insert(addressData)
+            .select()
+            .single()
 
           if (error) throw error
+
+          setShippingAddresses((prev) => [newAddress, ...prev])
           toast.success("Shipping address added successfully")
         }
       }
 
-      await loadAddresses()
+      setIsDialogOpen(false)
+      setEditingAddress(null)
     } catch (error) {
       console.error("Error saving address:", error)
       toast.error("Failed to save address")
-      throw error
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
   const handleDeleteAddress = async (id: string) => {
     try {
-      if (activeTab === "recipient") {
-        const { error } = await supabase.from("recipient_addresses").delete().eq("id", id)
+      const tableName = dialogType === "recipient" ? "recipient_addresses" : "shipping_addresses"
+      const { error } = await supabase.from(tableName).delete().eq("id", id)
 
-        if (error) throw error
-        toast.success("Recipient address deleted successfully")
+      if (error) throw error
+
+      if (dialogType === "recipient") {
+        setRecipientAddresses((prev) => prev.filter((addr) => addr.id !== id))
       } else {
-        const { error } = await supabase.from("shipping_addresses").delete().eq("id", id)
-
-        if (error) throw error
-        toast.success("Shipping address deleted successfully")
+        setShippingAddresses((prev) => prev.filter((addr) => addr.id !== id))
       }
 
-      await loadAddresses()
+      toast.success(`Address deleted successfully`)
     } catch (error) {
       console.error("Error deleting address:", error)
       toast.error("Failed to delete address")
-      throw error
     }
   }
 
-  return (
-    <div className="container mx-auto py-6 px-4">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Address Book</h1>
-          <p className="text-gray-600 mt-1">Manage your shipping and recipient addresses</p>
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="space-y-6">
+          <div>
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-96 mt-2" />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {[...Array(6)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <Skeleton className="h-6 w-32" />
+                  <Skeleton className="h-4 w-24" />
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       </div>
+    )
+  }
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="flex items-center justify-between mb-6">
-          <TabsList className="grid w-fit grid-cols-2">
+  return (
+    <div className="container mx-auto py-8">
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Address Book</h1>
+          <p className="text-muted-foreground">Manage your shipping and recipient addresses for faster checkout.</p>
+        </div>
+
+        <Tabs defaultValue="recipient" className="space-y-6">
+          <TabsList>
             <TabsTrigger value="recipient">My Recipient Addresses</TabsTrigger>
             <TabsTrigger value="shipping">My From Addresses</TabsTrigger>
           </TabsList>
 
-          <Button onClick={handleAddAddress}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add {activeTab === "recipient" ? "Recipient" : "Shipping"} Address
-          </Button>
-        </div>
+          <TabsContent value="recipient" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Recipient Addresses</CardTitle>
+                    <CardDescription>Addresses where you send packages to</CardDescription>
+                  </div>
+                  <Button onClick={() => handleAddAddress("recipient")}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Recipient Address
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <AddressList
+                  type="recipient"
+                  addresses={recipientAddresses}
+                  onEdit={handleEditAddress}
+                  onDelete={handleDeleteAddress}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        <TabsContent value="recipient" className="space-y-6">
-          <AddressList
-            addresses={recipientAddresses}
-            countries={countries}
-            type="recipient"
-            onEdit={handleEditAddress}
-            onDelete={handleDeleteAddress}
-            isLoading={isLoading}
-          />
-        </TabsContent>
+          <TabsContent value="shipping" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Shipping Addresses</CardTitle>
+                    <CardDescription>Addresses where you send packages from</CardDescription>
+                  </div>
+                  <Button onClick={() => handleAddAddress("shipping")}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Shipping Address
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <AddressList
+                  type="shipping"
+                  addresses={shippingAddresses}
+                  onEdit={handleEditAddress}
+                  onDelete={handleDeleteAddress}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
 
-        <TabsContent value="shipping" className="space-y-6">
-          <AddressList
-            addresses={shippingAddresses}
-            countries={countries}
-            type="shipping"
-            onEdit={handleEditAddress}
-            onDelete={handleDeleteAddress}
-            isLoading={isLoading}
-          />
-        </TabsContent>
-      </Tabs>
-
-      <AddressForm
-        isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        onSubmit={handleSubmitAddress}
-        type={activeTab as "recipient" | "shipping"}
-        editingAddress={editingAddress}
-        countries={countries}
-        userProfile={userProfile}
-      />
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {editingAddress ? "Edit" : "Add"} {dialogType === "recipient" ? "Recipient" : "Shipping"} Address
+              </DialogTitle>
+              <DialogDescription>
+                {editingAddress
+                  ? `Update your ${dialogType} address information.`
+                  : `Add a new ${dialogType} address to your address book.`}
+              </DialogDescription>
+            </DialogHeader>
+            <AddressForm
+              type={dialogType}
+              address={editingAddress}
+              countries={countries}
+              userProfile={userProfile}
+              onSubmit={handleSubmitAddress}
+              onCancel={() => setIsDialogOpen(false)}
+              isLoading={isSubmitting}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   )
 }
