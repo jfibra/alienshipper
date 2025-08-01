@@ -17,35 +17,70 @@ function MagicLinkCallbackContent() {
   useEffect(() => {
     const handleMagicLinkCallback = async () => {
       try {
-        const token_hash = searchParams.get("token_hash")
-        const type = searchParams.get("type")
+        // Check for error parameters first
+        const error = searchParams.get("error")
+        const errorCode = searchParams.get("error_code")
+        const errorDescription = searchParams.get("error_description")
 
-        if (token_hash && type) {
-          const { data, error } = await supabase.auth.verifyOtp({
-            token_hash,
-            type: type as any,
-          })
-
-          if (error) {
-            setStatus("error")
-            setMessage(error.message)
-          } else if (data.user) {
-            setStatus("success")
-            setMessage("Successfully signed in with magic link!")
-
-            // Store user session
-            localStorage.setItem("user", JSON.stringify(data.user))
-
-            // Redirect to dashboard after 2 seconds
-            setTimeout(() => {
-              router.push("/dashboard")
-            }, 2000)
-          }
-        } else {
+        if (error) {
+          console.error("Magic link error:", { error, errorCode, errorDescription })
           setStatus("error")
-          setMessage("Invalid magic link. Please try again.")
+
+          if (errorCode === "otp_expired") {
+            setMessage("Magic link has expired. Please request a new one.")
+          } else {
+            setMessage(errorDescription || "Magic link verification failed.")
+          }
+          return
+        }
+
+        // Handle successful magic link callback
+        const { data, error: authError } = await supabase.auth.getSession()
+
+        if (authError) {
+          console.error("Session error:", authError)
+          setStatus("error")
+          setMessage(authError.message)
+          return
+        }
+
+        if (data.session && data.session.user) {
+          setStatus("success")
+          setMessage("Successfully signed in with magic link!")
+
+          // Store user session
+          localStorage.setItem("user", JSON.stringify(data.session.user))
+
+          // Redirect to dashboard after 2 seconds
+          setTimeout(() => {
+            router.push("/dashboard")
+          }, 2000)
+        } else {
+          // Try to get the session again after a short delay
+          setTimeout(async () => {
+            const { data: retryData, error: retryError } = await supabase.auth.getSession()
+
+            if (retryError) {
+              setStatus("error")
+              setMessage("Failed to establish session. Please try again.")
+              return
+            }
+
+            if (retryData.session && retryData.session.user) {
+              setStatus("success")
+              setMessage("Successfully signed in with magic link!")
+              localStorage.setItem("user", JSON.stringify(retryData.session.user))
+              setTimeout(() => {
+                router.push("/dashboard")
+              }, 2000)
+            } else {
+              setStatus("error")
+              setMessage("No active session found. Please try signing in again.")
+            }
+          }, 1000)
         }
       } catch (error: any) {
+        console.error("Callback error:", error)
         setStatus("error")
         setMessage(error.message || "An error occurred during sign in")
       }

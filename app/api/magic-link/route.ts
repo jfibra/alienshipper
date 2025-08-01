@@ -15,8 +15,8 @@ export async function POST(req: NextRequest) {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        shouldCreateUser: false, // Don't create user for magic link
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/auth/magic-link-callback`,
+        shouldCreateUser: false,
+        emailRedirectTo: `https://v0-alien-shipper-homepage.vercel.app/auth/magic-link-callback`,
       },
     })
 
