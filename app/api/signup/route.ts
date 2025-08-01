@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    // Create user in Supabase Auth
+    // Create user in Supabase Auth with proper email confirmation
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
           monthly_volume: monthlyVolume,
           newsletter,
         },
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/confirm-signup`,
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/auth/confirm-signup`,
       },
     })
 
@@ -55,28 +55,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to create user" }, { status: 400 })
     }
 
-    // Create user details in users table
-    const { error: userError } = await supabase.from("users").insert({
-      id: authData.user.id,
-      email,
-      first_name: firstName,
-      last_name: lastName,
-      company,
-      phone,
-      business_type: businessType,
-      monthly_shipping_volume: monthlyVolume,
-      agreed_terms: agreedTerms,
-      newsletter_opt_in: newsletter,
-    })
-    if (userError) {
-      console.error("User table insert error:", userError)
-      // Don't fail the signup if user table insert fails
+    // Only create user details in users table if email is confirmed or if confirmation is not required
+    if (authData.user.email_confirmed_at || !authData.user.confirmation_sent_at) {
+      const { error: userError } = await supabase.from("users").insert({
+        id: authData.user.id,
+        email,
+        first_name: firstName,
+        last_name: lastName,
+        company,
+        phone,
+        business_type: businessType,
+        monthly_shipping_volume: monthlyVolume,
+        agreed_terms: agreedTerms,
+        newsletter_opt_in: newsletter,
+      })
+      if (userError) {
+        console.error("User table insert error:", userError)
+        // Don't fail the signup if user table insert fails
+      }
     }
 
     return NextResponse.json({
       success: true,
-      message: "Account created successfully! Please check your email to verify your account.",
+      message: authData.user.confirmation_sent_at
+        ? "Account created successfully! Please check your email to verify your account."
+        : "Account created and confirmed successfully!",
       user: authData.user,
+      needsConfirmation: !!authData.user.confirmation_sent_at,
     })
   } catch (error: any) {
     console.error("Signup error:", error)
