@@ -1,96 +1,9 @@
-"use client"
-
-import { useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { CheckCircle, Zap, Globe, Shield, Bell, MapPin, BarChart3, ArrowRight } from "lucide-react"
 
 export default function HomePage() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-
-  useEffect(() => {
-    // Handle URL search parameters first (from Supabase redirects)
-    const token = searchParams.get("token")
-    const type = searchParams.get("type")
-    const error = searchParams.get("error")
-    const access_token = searchParams.get("access_token")
-    const refresh_token = searchParams.get("refresh_token")
-
-    // Handle password reset callback with token in URL params
-    if (token && type === "recovery") {
-      console.log("Password reset token detected in URL params:", token)
-      router.replace(`/auth/reset-password?access_token=${token}&type=${type}`)
-      return
-    }
-
-    // Handle other auth tokens in URL params
-    if (access_token && refresh_token) {
-      console.log("Auth tokens detected in URL params")
-      router.replace(`/auth/reset-password?access_token=${access_token}&refresh_token=${refresh_token}&type=recovery`)
-      return
-    }
-
-    // Check for auth tokens in URL hash (Supabase sometimes puts them there)
-    const hash = window.location.hash
-    if (hash) {
-      const hashParams = new URLSearchParams(hash.substring(1))
-      const hashAccessToken = hashParams.get("access_token")
-      const hashRefreshToken = hashParams.get("refresh_token")
-      const hashTokenType = hashParams.get("token_type")
-      const hashType = hashParams.get("type")
-      const expiresAt = hashParams.get("expires_at")
-      const expiresIn = hashParams.get("expires_in")
-
-      // Handle password reset callback from hash
-      if (hashAccessToken && (hashType === "recovery" || hashTokenType === "bearer")) {
-        console.log("Password reset token detected in URL hash:", hashAccessToken)
-
-        // Build the redirect URL with all necessary parameters
-        const resetUrl = new URL("/auth/reset-password", window.location.origin)
-        resetUrl.searchParams.set("access_token", hashAccessToken)
-        if (hashRefreshToken) resetUrl.searchParams.set("refresh_token", hashRefreshToken)
-        if (hashTokenType) resetUrl.searchParams.set("token_type", hashTokenType)
-        resetUrl.searchParams.set("type", "recovery")
-        if (expiresAt) resetUrl.searchParams.set("expires_at", expiresAt)
-        if (expiresIn) resetUrl.searchParams.set("expires_in", expiresIn)
-
-        // Clear the hash and redirect
-        window.history.replaceState(null, "", window.location.pathname)
-        router.replace(resetUrl.toString())
-        return
-      }
-
-      // Only handle actual errors in hash, not valid tokens
-      const hashError = hashParams.get("error")
-      const errorCode = hashParams.get("error_code")
-      const errorDescription = hashParams.get("error_description")
-
-      if (hashError && hashError !== "access_denied") {
-        console.log("Auth error detected in hash:", hashError, errorCode, errorDescription)
-        if (errorCode === "otp_expired") {
-          router.replace(
-            `/forgot-password?error=expired&message=${encodeURIComponent("Password reset link has expired. Please request a new one.")}`,
-          )
-          return
-        }
-      }
-    }
-
-    // Handle URL parameter errors (but be more specific)
-    if (error && error !== "access_denied") {
-      console.log("Auth error detected in URL params:", error)
-      if (error === "otp_expired") {
-        router.replace(
-          `/forgot-password?error=expired&message=${encodeURIComponent("Password reset link has expired. Please request a new one.")}`,
-        )
-        return
-      }
-    }
-  }, [router, searchParams])
-
   return (
     <div className="min-h-screen">
       {/* Hero Section */}

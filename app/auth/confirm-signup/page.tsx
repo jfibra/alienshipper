@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, Suspense } from "react"
+import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { CheckCircle, Loader2, AlertCircle } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
-function ConfirmSignupContent() {
+export default function ConfirmSignupPage() {
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading")
   const [message, setMessage] = useState("")
   const router = useRouter()
@@ -119,26 +119,5 @@ function ConfirmSignupContent() {
         </Card>
       </div>
     </div>
-  )
-}
-
-export default function ConfirmSignupPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
-          <div className="w-full max-w-md">
-            <Card className="shadow-2xl border-0 bg-white/95 backdrop-blur">
-              <CardContent className="text-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-                <p className="text-gray-600">Loading...</p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      }
-    >
-      <ConfirmSignupContent />
-    </Suspense>
   )
 }

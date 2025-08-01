@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -10,16 +10,7 @@ export async function POST(req: NextRequest) {
   try {
     const { email } = await req.json()
     if (!email) return NextResponse.json({ error: "Missing email" }, { status: 400 })
-
-    // Send magic link with proper redirect URL
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        shouldCreateUser: false,
-        emailRedirectTo: `https://v0-alien-shipper-homepage.vercel.app/auth/magic-link-callback`,
-      },
-    })
-
+    const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } })
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
     return NextResponse.json({ success: true })
   } catch (err: any) {
