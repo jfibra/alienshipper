@@ -38,6 +38,9 @@ export default function Header() {
                 {item.name}
               </Link>
             ))}
+            <Button asChild variant="outline" className="mr-2">
+              <Link href="/login">Login</Link>
+            </Button>
             <Button asChild>
               <Link href="/signup">Sign Up</Link>
             </Button>
@@ -63,7 +66,12 @@ export default function Header() {
                   {item.name}
                 </Link>
               ))}
-              <Button asChild className="mx-2 mt-4">
+              <Button asChild variant="outline" className="mx-2 mt-4">
+                <Link href="/login" onClick={() => setIsMenuOpen(false)}>
+                  Login
+                </Link>
+              </Button>
+              <Button asChild className="mx-2 mt-2">
                 <Link href="/signup" onClick={() => setIsMenuOpen(false)}>
                   Sign Up
                 </Link>
