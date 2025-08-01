@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     if (!email) return NextResponse.json({ error: "Missing email" }, { status: 400 })
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: process.env.NEXT_PUBLIC_SITE_URL + "/auth/reset-password",
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password`,
     })
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
