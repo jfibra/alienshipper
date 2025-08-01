@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -38,27 +39,11 @@ export default function LoginPage() {
     setIsLoading(true)
     setError("")
     setSuccess("")
-
+    const supabase = createClientComponentClient()
     try {
-      const response = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "Login failed")
-      }
-
-      if (data.success) {
-        // Store user session
-        localStorage.setItem("user", JSON.stringify(data.user))
-        router.push("/dashboard")
-      } else {
-        throw new Error(data.error || "Login failed")
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) throw new Error(error.message || "Login failed")
+      router.push("/dashboard")
     } catch (err: any) {
       setError(err.message || "An error occurred during login")
     } finally {
